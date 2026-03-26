@@ -5,10 +5,10 @@ import { ShoeRecommendations } from './ShoeRecommendations'
 import { MinimalistIndex } from '../tools/MinimalistIndex'
 
 const TABS = [
-  { id: 'rotation', label: 'Mes chaussures' },
-  { id: 'transition', label: 'Transition' },
-  { id: 'recommandations', label: 'Conseils cliniques' },
-  { id: 'indice', label: 'Indice minimaliste' },
+  { id: 'rotation', label: 'Mes chaussures', desc: 'Enregistrez vos paires, suivez leur kilométrage et optimisez votre rotation.' },
+  { id: 'transition', label: 'Transition', desc: 'Planifiez le passage progressif vers une chaussure plus minimaliste en toute sécurité.' },
+  { id: 'recommandations', label: 'Conseils cliniques', desc: 'Consultez les recommandations de chaussage adaptées à chaque pathologie du coureur.' },
+  { id: 'indice', label: 'Indice minimaliste', desc: 'Calculez le score minimaliste d\'une chaussure selon le barème Esculier et al. (2014).' },
 ]
 
 export function ChaussageDashboard({ patient, store }) {
@@ -29,7 +29,7 @@ export function ChaussageDashboard({ patient, store }) {
           Chaussage
         </h2>
         <p className="text-text-secondary text-sm mt-1">
-          Gestion du parc de chaussures, transition minimaliste et conseils cliniques
+          {TABS.find(t => t.id === activeTab)?.desc}
         </p>
       </div>
 
