@@ -55,6 +55,7 @@ function App() {
             patient={store.patient}
             sessions={store.sessions}
             trainingPlan={store.trainingPlan}
+            onNavigate={setCurrentPage}
           />
         )
       case 'patient':

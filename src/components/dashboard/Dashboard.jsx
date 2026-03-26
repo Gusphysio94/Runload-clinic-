@@ -8,6 +8,7 @@ import { RiskGauge } from './RiskGauge'
 import { AlertPanel } from './AlertPanel'
 import { MetricCard } from './MetricCard'
 import { ExportReport } from './ExportReport'
+import { WeeklyActionsPanel } from './WeeklyActionsPanel'
 import { RiskProjection } from './RiskProjection'
 import {
   calcRiskScore,
@@ -69,7 +70,7 @@ function getWellnessStatus(val) {
   return 'red'
 }
 
-export function Dashboard({ patient, sessions, trainingPlan }) {
+export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
   const [showExport, setShowExport] = useState(false)
 
   if (!patient) {
@@ -140,6 +141,17 @@ export function Dashboard({ patient, sessions, trainingPlan }) {
           onClose={() => setShowExport(false)}
         />
       )}
+
+      {/* Actions de la semaine */}
+      <WeeklyActionsPanel
+        risk={risk}
+        acwr={acwr}
+        volumeChange={volumeChange}
+        wellness={wellness}
+        weekSessions={weekSessions}
+        recommendations={recommendations}
+        onNavigate={onNavigate}
+      />
 
       {/* Jauge + Alertes */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

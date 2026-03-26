@@ -41,7 +41,7 @@ const EMPTY_SESSION = {
 
 export function SessionForm({ patient, onSave, initialData, onCancel }) {
   const [form, setForm] = useState(initialData || EMPTY_SESSION)
-  const [step, setStep] = useState(1) // 1: séance, 2: bien-être, 3: contexte
+  const [step, setStep] = useState(1) // 1: séance, 2: bien-être, 3: contexte, 4: résumé
 
   const update = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -96,6 +96,7 @@ export function SessionForm({ patient, onSave, initialData, onCancel }) {
     { num: 1, label: 'Séance' },
     { num: 2, label: 'Bien-être' },
     { num: 3, label: 'Contexte' },
+    { num: 4, label: 'Résumé' },
   ]
 
   return (
@@ -353,38 +354,97 @@ export function SessionForm({ patient, onSave, initialData, onCancel }) {
             </FormField>
           </div>
 
-          {/* Résumé rapide */}
-          <div className="mt-6 p-5 bg-gradient-to-br from-primary-50 to-primary-100/50 rounded-xl border border-primary-200/60">
-            <h4 className="font-semibold text-sm text-primary-800 mb-3" style={{ fontFamily: 'var(--font-heading)' }}>Résumé de la séance</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div>
-                <span className="text-text-muted block">Distance</span>
-                <span className="font-medium">{form.distance || '—'} km</span>
-              </div>
-              <div>
-                <span className="text-text-muted block">Durée</span>
-                <span className="font-medium">{form.duration || '—'} min</span>
-              </div>
-              <div>
-                <span className="text-text-muted block">RPE</span>
-                <span className="font-medium">{form.rpe}/10</span>
-              </div>
-              <div>
-                <span className="text-text-muted block">D+</span>
-                <span className="font-medium">{form.elevationGain || '0'} m</span>
-              </div>
-            </div>
-          </div>
-
           <div className="flex justify-between mt-6">
             <Button variant="secondary" onClick={() => setStep(2)}>Précédent</Button>
+            <Button onClick={() => setStep(4)}>Suivant</Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Step 4: Résumé */}
+      {step === 4 && (
+        <div className="space-y-4">
+          {/* Séance */}
+          <Card>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-text-primary" style={{ fontFamily: 'var(--font-heading)' }}>Séance</h4>
+              <button onClick={() => setStep(1)} className="text-xs text-primary-500 hover:text-primary-600 font-medium">Modifier</button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <SummaryItem label="Date" value={new Date(form.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} />
+              <SummaryItem label="Type" value={SESSION_TYPES.find(t => t.value === form.sessionType)?.label || '—'} />
+              <SummaryItem label="Distance" value={form.distance ? `${form.distance} km` : '—'} />
+              <SummaryItem label="Durée" value={form.duration ? `${form.duration} min` : '—'} />
+              <SummaryItem label="D+" value={form.elevationGain ? `${form.elevationGain} m` : '0 m'} />
+              <SummaryItem label="Surface" value={SURFACES.find(s => s.value === form.surface)?.label || '—'} />
+              <SummaryItem label="RPE" value={`${form.rpe}/10`} highlight={form.rpe >= 7} />
+              {form.useZones && (
+                <SummaryItem label="Zones" value={Object.entries(form.zones).filter(([, v]) => v).map(([k, v]) => `${k.toUpperCase()}:${v}'`).join(' · ') || '—'} />
+              )}
+            </div>
+          </Card>
+
+          {/* Bien-être */}
+          <Card>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-text-primary" style={{ fontFamily: 'var(--font-heading)' }}>Bien-être</h4>
+              <button onClick={() => setStep(2)} className="text-xs text-primary-500 hover:text-primary-600 font-medium">Modifier</button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <SummaryItem label="Fatigue" value={`${form.fatigue}/10`} highlight={form.fatigue >= 7} />
+              <SummaryItem label="Sommeil" value={`${form.sleepQuality}/5`} highlight={form.sleepQuality <= 2} />
+              <SummaryItem label="Stress" value={`${form.lifeStress}/5`} highlight={form.lifeStress >= 4} />
+              <SummaryItem label="Humeur" value={`${form.mood}/5`} highlight={form.mood <= 2} />
+              {form.hasPain && (
+                <>
+                  <SummaryItem label="Douleur" value={`${form.painIntensity}/10`} highlight />
+                  <SummaryItem label="Localisation" value={BODY_LOCATIONS.find(b => b.value === form.painLocation)?.label || form.painLocation || '—'} />
+                </>
+              )}
+            </div>
+          </Card>
+
+          {/* Contexte */}
+          {(form.contextualFactors.length > 0 || form.contextualNote) && (
+            <Card>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-text-primary" style={{ fontFamily: 'var(--font-heading)' }}>Contexte</h4>
+                <button onClick={() => setStep(3)} className="text-xs text-primary-500 hover:text-primary-600 font-medium">Modifier</button>
+              </div>
+              {form.contextualFactors.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {form.contextualFactors.map(f => (
+                    <span key={f} className="text-xs px-2 py-1 rounded-lg bg-amber-50 border border-amber-200/50 text-amber-700 font-medium">
+                      {CONTEXTUAL_FACTORS.find(c => c.value === f)?.label || f}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {form.contextualNote && (
+                <p className="text-xs text-text-secondary italic">{form.contextualNote}</p>
+              )}
+            </Card>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-between">
+            <Button variant="secondary" onClick={() => setStep(3)}>Précédent</Button>
             <div className="flex gap-2">
               {onCancel && <Button variant="secondary" onClick={onCancel}>Annuler</Button>}
               <Button onClick={handleSave}>Enregistrer la séance</Button>
             </div>
           </div>
-        </Card>
+        </div>
       )}
+    </div>
+  )
+}
+
+function SummaryItem({ label, value, highlight }) {
+  return (
+    <div className={`px-3 py-2 rounded-lg ${highlight ? 'bg-amber-50 border border-amber-200/40' : 'bg-surface-dark/20 border border-border/30'}`}>
+      <p className="text-[0.6rem] font-semibold text-text-muted uppercase tracking-wider">{label}</p>
+      <p className={`text-sm font-semibold mt-0.5 ${highlight ? 'text-amber-700' : 'text-text-primary'}`} style={{ fontFamily: 'var(--font-heading)' }}>{value}</p>
     </div>
   )
 }
