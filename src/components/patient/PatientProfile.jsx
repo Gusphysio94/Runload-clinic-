@@ -28,7 +28,7 @@ const EMPTY_PATIENT = {
 }
 
 export function PatientProfile({ patient, onSave }) {
-  const [form, setForm] = useState(patient || EMPTY_PATIENT)
+  const [form, setForm] = useState({ ...EMPTY_PATIENT, ...patient })
   const [activeTab, setActiveTab] = useState('general')
 
   const update = (field, value) => {
