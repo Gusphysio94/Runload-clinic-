@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useStore } from './store/useStore'
 import { Sidebar, MobileHeader } from './components/layout/Sidebar'
+import { Toast } from './components/ui/Toast'
 import { Dashboard } from './components/dashboard/Dashboard'
 import { PatientProfile } from './components/patient/PatientProfile'
 import { SessionForm } from './components/session/SessionForm'
@@ -22,9 +23,16 @@ function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [editingSession, setEditingSession] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [toast, setToast] = useState(null)
+
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type, key: Date.now() })
+  }, [])
 
   const handleSavePatient = (patient) => {
+    const isNew = !store.patient
     store.setPatient(patient)
+    showToast(isNew ? 'Profil patient créé' : 'Profil patient mis à jour')
     setCurrentPage('dashboard')
   }
 
@@ -32,10 +40,12 @@ function App() {
     if (editingSession) {
       store.updateSession(editingSession.id, session)
       setEditingSession(null)
+      showToast('Séance modifiée')
     } else {
       store.addSession(session)
+      showToast('Séance enregistrée')
     }
-    setCurrentPage('history')
+    setCurrentPage('dashboard')
   }
 
   const handleEditSession = (session) => {
@@ -45,6 +55,16 @@ function App() {
 
   const handleDeleteSession = (id) => {
     store.deleteSession(id)
+    showToast('Séance supprimée', 'info')
+  }
+
+  const handleRepeatSession = (session) => {
+    const today = new Date().toISOString().slice(0, 10)
+    const { id, ...rest } = session
+    // Use a unique key to force SessionForm remount with new data
+    setEditingSession({ ...rest, id: undefined, date: today, _repeatKey: Date.now() })
+    setCurrentPage('session')
+    showToast('Séance dupliquée — modifiez et enregistrez', 'info')
   }
 
   const renderPage = () => {
@@ -68,6 +88,7 @@ function App() {
       case 'session':
         return (
           <SessionForm
+            key={editingSession?.id || editingSession?._repeatKey || 'new'}
             patient={store.patient}
             onSave={handleSaveSession}
             initialData={editingSession}
@@ -98,6 +119,7 @@ function App() {
               sessions={store.sessions}
               onEdit={handleEditSession}
               onDelete={handleDeleteSession}
+              onRepeat={handleRepeatSession}
             />
           </div>
         )
@@ -202,10 +224,36 @@ function App() {
           currentPage={currentPage}
           patient={store.patient}
         />
-        <div className="relative z-10 max-w-5xl mx-auto px-4 py-5 md:px-8 md:py-8">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 py-5 md:px-8 md:py-8 pb-24 md:pb-8">
           {renderPage()}
         </div>
       </main>
+
+      {/* FAB mobile — Ajouter séance */}
+      {store.patient && currentPage !== 'session' && (
+        <button
+          onClick={() => { setEditingSession(null); setCurrentPage('session') }}
+          className="md:hidden fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full
+            bg-gradient-to-b from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-600/30
+            hover:shadow-xl hover:shadow-primary-600/40 active:scale-95 transition-all duration-200
+            flex items-center justify-center"
+          aria-label="Nouvelle séance"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+        </button>
+      )}
+
+      {/* Toast notifications */}
+      {toast && (
+        <Toast
+          key={toast.key}
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   )
 }

@@ -85,9 +85,63 @@ export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
               </svg>
             </div>
             <h3 className="text-xl font-bold text-text-primary mb-2 tracking-tight">Bienvenue sur RunLoad Clinic</h3>
-            <p className="text-text-secondary text-sm max-w-md mx-auto leading-relaxed">
+            <p className="text-text-secondary text-sm max-w-md mx-auto leading-relaxed mb-6">
               Commencez par créer le profil de votre patient pour débuter le suivi de la charge d'entraînement.
             </p>
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate('patient')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-b from-primary-500 to-primary-600 text-white text-sm font-semibold rounded-xl
+                  hover:from-primary-500 hover:to-primary-700 shadow-sm shadow-primary-600/25 hover:shadow-md
+                  transition-all duration-200"
+                style={{ fontFamily: 'var(--font-heading)' }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Créer un profil patient
+              </button>
+            )}
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // Onboarding: patient exists but not enough sessions
+  if (sessions.length === 0) {
+    return (
+      <div className="space-y-6 animate-fade-in-up">
+        <h2 className="text-2xl font-bold text-text-primary tracking-tight">Tableau de bord</h2>
+        <Card>
+          <div className="py-8">
+            <h3 className="text-lg font-bold text-text-primary mb-1 tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
+              Profil de {patient.firstName} créé
+            </h3>
+            <p className="text-text-secondary text-sm mb-6">
+              Enregistrez des séances pour activer le tableau de bord clinique.
+            </p>
+            <div className="space-y-3">
+              <OnboardingStep
+                step={1}
+                done
+                title="Créer le profil patient"
+                detail={`${patient.firstName} ${patient.lastName || ''} — ${patient.level || 'niveau non défini'}`}
+              />
+              <OnboardingStep
+                step={2}
+                title="Enregistrer la première séance"
+                detail="Distance, durée, RPE et bien-être pour calculer la charge initiale."
+                action={onNavigate ? () => onNavigate('session') : null}
+                actionLabel="Ajouter une séance"
+              />
+              <OnboardingStep
+                step={3}
+                title="Suivre la charge sur 2+ semaines"
+                detail="L'ACWR, la monotonie et le score de risque s'affinent avec l'historique."
+                disabled
+              />
+            </div>
           </div>
         </Card>
       </div>
@@ -172,6 +226,7 @@ export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
           value={acwr !== null ? acwr.toFixed(2) : '—'}
           status={getACWRStatus(acwr)}
           detail="Sweet spot : 0.8–1.3"
+          tooltip="Ratio Charge Aiguë / Charge Chronique. Mesure la variation de charge sur 7 jours vs 28 jours. Entre 0.8 et 1.3 = zone optimale. Au-dessus de 1.5 = risque de blessure augmenté."
         />
         <MetricCard
           label="Δ Volume"
@@ -179,12 +234,14 @@ export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
           unit="%"
           status={getVolumeStatus(volumeChange)}
           detail={`${weekVolume.toFixed(1)} km cette semaine`}
+          tooltip="Variation du volume (km) cette semaine vs la semaine précédente. Règle des 10% : ne pas augmenter de plus de 10% par semaine pour limiter le risque de blessure."
         />
         <MetricCard
           label="Monotonie"
           value={monotony.toFixed(1)}
           status={getMonotonyStatus(monotony)}
           detail="Seuil : < 2.0"
+          tooltip="Indicateur de variabilité de la charge quotidienne (écart-type). Une monotonie > 2.0 signifie que toutes les séances se ressemblent, augmentant le risque de surentraînement."
         />
         <MetricCard
           label="Bien-être"
@@ -192,6 +249,7 @@ export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
           unit="%"
           status={getWellnessStatus(wellness)}
           detail="Composite Hooper"
+          tooltip="Score composite basé sur l'index de Hooper modifié : fatigue, qualité du sommeil, stress et humeur. Un score < 50% indique un état de récupération dégradé."
         />
       </div>
 
@@ -203,6 +261,7 @@ export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
           unit="UA"
           status="neutral"
           detail="Charge × Monotonie"
+          tooltip="Contrainte d'entraînement = charge hebdomadaire × monotonie. Un strain élevé avec une monotonie élevée augmente considérablement le risque d'infection et de blessure (Foster, 1998)."
         />
         <MetricCard
           label="Séances/semaine"
@@ -215,12 +274,14 @@ export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
           unit="%"
           status={decoupling !== null && Math.abs(decoupling) > 20 ? 'orange' : 'neutral'}
           detail="RPE vs Zones"
+          tooltip="Écart entre l'effort perçu (RPE) et l'intensité objective (zones). Un découplage > 20% peut indiquer une fatigue accumulée ou un surentraînement latent."
         />
         <MetricCard
           label="Multiplicateur blessure"
           value={`×${risk.components.injury.value.toFixed(1)}`}
           status={risk.components.injury.value > 1.2 ? 'orange' : 'neutral'}
           detail="Pondération historique"
+          tooltip="Facteur multiplicateur basé sur l'historique de blessures du patient. Une blessure récente ou récurrente augmente ce coefficient, pondérant à la hausse le score de risque global."
         />
       </div>
 
@@ -405,6 +466,43 @@ export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
           ))}
         </ul>
       </Card>
+    </div>
+  )
+}
+
+function OnboardingStep({ step, done, title, detail, action, actionLabel, disabled }) {
+  return (
+    <div className={`flex items-start gap-3 p-3 rounded-xl border ${
+      done ? 'bg-emerald-50/50 border-emerald-200/50' :
+      disabled ? 'bg-surface-dark/10 border-border/30 opacity-50' :
+      'bg-primary-50/30 border-primary-200/40'
+    }`}>
+      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold ${
+        done ? 'bg-emerald-500 text-white' :
+        disabled ? 'bg-slate-200 text-slate-400' :
+        'bg-primary-500 text-white'
+      }`} style={{ fontFamily: 'var(--font-heading)' }}>
+        {done ? (
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+        ) : step}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold ${done ? 'text-emerald-700' : disabled ? 'text-text-muted' : 'text-text-primary'}`}>
+          {title}
+        </p>
+        {detail && <p className="text-xs text-text-muted mt-0.5">{detail}</p>}
+      </div>
+      {action && actionLabel && (
+        <button
+          onClick={action}
+          className="text-xs font-semibold text-primary-500 hover:text-primary-600 px-3 py-1.5 rounded-lg
+            hover:bg-primary-50 transition-colors shrink-0"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   )
 }
