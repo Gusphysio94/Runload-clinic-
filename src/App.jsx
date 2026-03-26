@@ -10,6 +10,7 @@ import { LactateTestCalculator } from './components/tools/LactateTestCalculator'
 import { InjuryGuidance } from './components/tools/InjuryGuidance'
 import { TrainingPlan } from './components/planification/TrainingPlan'
 import { MinimalistIndex } from './components/tools/MinimalistIndex'
+import { LegalPage } from './components/legal/LegalPage'
 
 function App() {
   const store = useStore()
@@ -125,6 +126,10 @@ function App() {
       case 'minimalist-index':
         return (
           <MinimalistIndex />
+        )
+      case 'legal':
+        return (
+          <LegalPage />
         )
       default:
         return null
