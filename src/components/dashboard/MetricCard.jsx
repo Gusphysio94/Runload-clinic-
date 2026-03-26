@@ -36,9 +36,10 @@ export function MetricCard({ label, value, unit, status = 'neutral', detail, too
           </button>
         )}
         {showTip && tooltip && (
-          <div className="absolute z-30 left-2 right-2 top-full mt-1 p-2.5 bg-slate-800 text-white text-[0.65rem]
+          <div className="absolute z-50 left-2 right-2 bottom-full mb-1 p-2.5 bg-slate-800 text-white text-[0.65rem]
             rounded-lg shadow-xl leading-relaxed pointer-events-none">
             {tooltip}
+            <div className="absolute left-4 top-full w-0 h-0 border-x-[5px] border-x-transparent border-t-[5px] border-t-slate-800" />
           </div>
         )}
       </div>
