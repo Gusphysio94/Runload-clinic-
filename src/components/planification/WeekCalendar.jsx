@@ -21,7 +21,7 @@ export function WeekCalendar({ plan, store }) {
           return (
             <div key={week.weekNumber}>
               {/* Week header */}
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-2 md:gap-3 mb-2 flex-wrap">
                 <h3 className="text-sm font-semibold text-text-primary" style={{ fontFamily: 'var(--font-heading)' }}>
                   {week.label}
                 </h3>
@@ -40,8 +40,8 @@ export function WeekCalendar({ plan, store }) {
                 )}
               </div>
 
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1.5">
+              {/* Desktop: 7-column calendar grid */}
+              <div className="hidden md:grid grid-cols-7 gap-1.5">
                 {/* Day headers */}
                 {DAYS.map((day) => (
                   <div key={day} className="text-center text-[0.6rem] font-semibold text-text-muted uppercase tracking-wider pb-1">
@@ -75,6 +75,31 @@ export function WeekCalendar({ plan, store }) {
                     </div>
                   )
                 })}
+              </div>
+
+              {/* Mobile: list of sessions only (no empty rest days) */}
+              <div className="md:hidden space-y-2">
+                {week.sessions.length === 0 ? (
+                  <p className="text-xs text-text-muted text-center py-4">Aucune séance cette semaine</p>
+                ) : (
+                  week.sessions.map(session => {
+                    const isCompleted = !!completedSessions[session.id]?.done
+                    return (
+                      <div key={session.id} className="flex items-center gap-2">
+                        <span className="text-[0.65rem] font-semibold text-text-muted w-8 shrink-0 text-center">
+                          {DAYS[session.dayOfWeek]}
+                        </span>
+                        <div className="flex-1">
+                          <PlanSessionCard
+                            session={session}
+                            onClick={setSelectedSession}
+                            isCompleted={isCompleted}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
               </div>
             </div>
           )

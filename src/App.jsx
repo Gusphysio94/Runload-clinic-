@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from './store/useStore'
-import { Sidebar } from './components/layout/Sidebar'
+import { Sidebar, MobileHeader } from './components/layout/Sidebar'
 import { Dashboard } from './components/dashboard/Dashboard'
 import { PatientProfile } from './components/patient/PatientProfile'
 import { SessionForm } from './components/session/SessionForm'
@@ -16,6 +16,7 @@ function App() {
   const store = useStore()
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [editingSession, setEditingSession] = useState(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleSavePatient = (patient) => {
     store.setPatient(patient)
@@ -70,21 +71,21 @@ function App() {
       case 'history':
         return (
           <div className="space-y-6 animate-fade-in-up">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-text-primary tracking-tight">Historique des séances</h2>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-xl md:text-2xl font-bold text-text-primary tracking-tight">Historique des séances</h2>
                 <p className="text-text-secondary text-sm mt-1">
                   {store.sessions.length} séance(s) enregistrée(s)
                 </p>
               </div>
               <button
                 onClick={() => { setEditingSession(null); setCurrentPage('session') }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-b from-primary-500 to-primary-600 text-white text-sm font-semibold rounded-xl
+                className="inline-flex items-center gap-2 px-3 md:px-5 py-2.5 bg-gradient-to-b from-primary-500 to-primary-600 text-white text-sm font-semibold rounded-xl
                   hover:from-primary-500 hover:to-primary-700 shadow-sm shadow-primary-600/25 hover:shadow-md hover:shadow-primary-600/30
-                  transition-all duration-200"
+                  transition-all duration-200 shrink-0"
                 style={{ fontFamily: 'var(--font-heading)' }}
               >
-                + Nouvelle séance
+                <span className="hidden sm:inline">+</span> Nouvelle séance
               </button>
             </div>
             <SessionList
@@ -143,9 +144,16 @@ function App() {
         onNavigate={setCurrentPage}
         patient={store.patient}
         store={store}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
-      <main className="flex-1 overflow-y-auto bg-grain">
-        <div className="relative z-10 max-w-5xl mx-auto px-8 py-8">
+      <main className="flex-1 overflow-y-auto bg-grain min-w-0">
+        <MobileHeader
+          onOpenMenu={() => setMobileMenuOpen(true)}
+          currentPage={currentPage}
+          patient={store.patient}
+        />
+        <div className="relative z-10 max-w-5xl mx-auto px-4 py-5 md:px-8 md:py-8">
           {renderPage()}
         </div>
       </main>

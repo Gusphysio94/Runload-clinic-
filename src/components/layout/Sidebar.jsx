@@ -12,8 +12,18 @@ const NAV_ITEMS = [
   { id: 'minimalist-index', label: 'Indice minimaliste', icon: ShoeIcon },
 ]
 
-export function Sidebar({ currentPage, onNavigate, patient, store }) {
+export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, onCloseMobile }) {
   const [showPatientMenu, setShowPatientMenu] = useState(false)
+
+  // Fermer le menu mobile + patient menu quand on navigue
+  const handleNav = (id) => {
+    onNavigate(id)
+    setShowPatientMenu(false)
+    onCloseMobile?.()
+  }
+
+  // Fermer le menu patient quand on navigue (via handleNav)
+  // Le cleanup de showPatientMenu est géré dans handleNav et handleSelectPatient
 
   const handleSelectPatient = (id) => {
     store.setActivePatient(id)
@@ -23,7 +33,7 @@ export function Sidebar({ currentPage, onNavigate, patient, store }) {
   const handleNewPatient = () => {
     store.addPatient({ firstName: '', lastName: '' })
     setShowPatientMenu(false)
-    onNavigate('patient')
+    handleNav('patient')
   }
 
   const handleDeletePatient = (id, e) => {
@@ -35,13 +45,13 @@ export function Sidebar({ currentPage, onNavigate, patient, store }) {
     }
   }
 
-  return (
-    <aside className="w-72 bg-surface-dark min-h-screen flex flex-col shrink-0 sidebar-glow relative overflow-hidden">
+  const sidebarContent = (
+    <>
       {/* Subtle gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary-900/10 via-transparent to-primary-900/5 pointer-events-none" />
 
       {/* Logo */}
-      <div className="relative px-6 py-7 border-b border-white/[0.06]">
+      <div className="relative px-6 py-5 md:py-7 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-600/20">
             <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -57,6 +67,15 @@ export function Sidebar({ currentPage, onNavigate, patient, store }) {
             </p>
           </div>
         </div>
+        {/* Close button on mobile */}
+        <button
+          onClick={onCloseMobile}
+          className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Patient selector */}
@@ -98,7 +117,6 @@ export function Sidebar({ currentPage, onNavigate, patient, store }) {
         {/* Dropdown patient list */}
         {showPatientMenu && (
           <div className="absolute left-3 right-3 top-full mt-1 z-50 bg-[#1a1f35] border border-white/10 rounded-xl shadow-xl shadow-black/30 overflow-hidden">
-            {/* Existing patients */}
             {store.patientsList.length > 0 && (
               <div className="max-h-48 overflow-y-auto py-1">
                 {store.patientsList.map(p => (
@@ -136,8 +154,6 @@ export function Sidebar({ currentPage, onNavigate, patient, store }) {
                 ))}
               </div>
             )}
-
-            {/* New patient button */}
             <div className="border-t border-white/[0.06]">
               <button
                 onClick={handleNewPatient}
@@ -156,14 +172,14 @@ export function Sidebar({ currentPage, onNavigate, patient, store }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-5 space-y-1 relative">
+      <nav className="flex-1 px-4 py-5 space-y-1 relative overflow-y-auto">
         {NAV_ITEMS.map(item => {
           const isActive = currentPage === item.id
           const Icon = item.icon
           return (
             <button
               key={item.id}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => handleNav(item.id)}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
                 ${isActive
                   ? 'bg-primary-500/15 text-primary-400 shadow-sm shadow-primary-500/5'
@@ -184,7 +200,7 @@ export function Sidebar({ currentPage, onNavigate, patient, store }) {
       {/* Footer */}
       <div className="relative px-6 py-4 border-t border-white/[0.06] space-y-2">
         <button
-          onClick={() => onNavigate('legal')}
+          onClick={() => handleNav('legal')}
           className={`flex items-center gap-2 text-[0.65rem] font-medium transition-colors ${
             currentPage === 'legal' ? 'text-primary-400' : 'text-slate-500 hover:text-slate-300'
           }`}
@@ -205,7 +221,65 @@ export function Sidebar({ currentPage, onNavigate, patient, store }) {
           )}
         </div>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-72 bg-surface-dark min-h-screen flex-col shrink-0 sidebar-glow relative overflow-hidden">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={onCloseMobile}
+          />
+          {/* Sidebar panel */}
+          <aside className="relative w-72 max-w-[85vw] bg-surface-dark flex flex-col sidebar-glow overflow-hidden animate-slide-in-left">
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ─── Mobile Header ──────────────────────────────────────────────────────────
+
+export function MobileHeader({ onOpenMenu, currentPage, patient }) {
+  const currentItem = NAV_ITEMS.find(i => i.id === currentPage)
+
+  return (
+    <div className="md:hidden sticky top-0 z-40 bg-surface-dark/95 backdrop-blur-md border-b border-white/[0.06] px-4 py-3 flex items-center gap-3">
+      <button
+        onClick={onOpenMenu}
+        className="p-2 -ml-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+        </svg>
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-white truncate" style={{ fontFamily: 'var(--font-heading)' }}>
+          {currentItem?.label || 'RunLoad Clinic'}
+        </p>
+        {patient && (
+          <p className="text-[0.6rem] text-slate-400 truncate">
+            {patient.firstName} {patient.lastName}
+          </p>
+        )}
+      </div>
+      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shrink-0">
+        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+        </svg>
+      </div>
+    </div>
   )
 }
 

@@ -113,6 +113,11 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+@keyframes slideInFromLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
 @keyframes pulseGlow {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.8; }
@@ -131,7 +136,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .animate-slide-in-left {
-  animation: slideInLeft 0.3s ease-out both;
+  animation: slideInFromLeft 0.25s ease-out both;
 }
 
 /* Stagger children */
