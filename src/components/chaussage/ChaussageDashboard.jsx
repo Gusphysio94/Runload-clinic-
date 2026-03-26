@@ -34,15 +34,15 @@ export function ChaussageDashboard({ patient, store }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface-dark/30 rounded-xl p-1 border border-border/40 overflow-x-auto">
+      <div className="flex gap-1 bg-surface-card rounded-xl p-1.5 border border-border shadow-sm overflow-x-auto">
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 min-w-fit px-4 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
+            className={`flex-1 min-w-fit px-4 py-2.5 text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
               activeTab === tab.id
-                ? 'bg-primary-500 text-white shadow-sm'
-                : 'text-text-muted hover:text-text-primary'
+                ? 'bg-primary-500 text-white shadow-md shadow-primary-500/25'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface-dark/40'
             }`}
             style={{ fontFamily: 'var(--font-heading)' }}
           >
