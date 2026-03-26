@@ -1,18 +1,41 @@
 import { useState } from 'react'
 
-const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Tableau de bord', icon: DashboardIcon },
-  { id: 'patient', label: 'Profil patient', icon: UserIcon },
-  { id: 'session', label: 'Nouvelle séance', icon: PlusIcon },
-  { id: 'history', label: 'Historique', icon: ListIcon },
-  { id: 'trends', label: 'Tendances', icon: TrendIcon },
-  { id: 'planification', label: 'Planification', icon: CalendarIcon },
-  { id: 'injury-guide', label: 'Je suis blessé', icon: InjuryIcon },
-  { id: 'critical-speed', label: 'Vitesse critique', icon: SpeedIcon },
-  { id: 'lactate', label: 'Test lactate', icon: LactateIcon },
-  { id: 'minimalist-index', label: 'Indice minimaliste', icon: ShoeIcon },
-  { id: 'return-to-run', label: 'Reprise course', icon: ReturnRunIcon },
+const NAV_SECTIONS = [
+  {
+    label: 'Suivi',
+    items: [
+      { id: 'dashboard', label: 'Tableau de bord', icon: DashboardIcon },
+      { id: 'session', label: 'Nouvelle séance', icon: PlusIcon },
+      { id: 'history', label: 'Historique', icon: ListIcon },
+      { id: 'trends', label: 'Tendances', icon: TrendIcon },
+    ],
+  },
+  {
+    label: 'Programmation',
+    items: [
+      { id: 'planification', label: 'Plan d\'entraînement', icon: CalendarIcon },
+      { id: 'return-to-run', label: 'Reprise course', icon: ReturnRunIcon },
+    ],
+  },
+  {
+    label: 'Outils cliniques',
+    items: [
+      { id: 'injury-guide', label: 'Guide blessure', icon: InjuryIcon },
+      { id: 'critical-speed', label: 'Vitesse critique', icon: SpeedIcon },
+      { id: 'lactate', label: 'Test lactate', icon: LactateIcon },
+      { id: 'minimalist-index', label: 'Indice minimaliste', icon: ShoeIcon },
+    ],
+  },
+  {
+    label: 'Configuration',
+    items: [
+      { id: 'patient', label: 'Profil patient', icon: UserIcon },
+    ],
+  },
 ]
+
+// Flat list for lookups (MobileHeader, etc.)
+const NAV_ITEMS = NAV_SECTIONS.flatMap(s => s.items)
 
 export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, onCloseMobile }) {
   const [showPatientMenu, setShowPatientMenu] = useState(false)
@@ -174,29 +197,38 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-5 space-y-1 relative overflow-y-auto">
-        {NAV_ITEMS.map(item => {
-          const isActive = currentPage === item.id
-          const Icon = item.icon
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleNav(item.id)}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                ${isActive
-                  ? 'bg-primary-500/15 text-primary-400 shadow-sm shadow-primary-500/5'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
-                }`}
-              style={{ fontFamily: 'var(--font-heading)' }}
-            >
-              <Icon className={`w-[18px] h-[18px] shrink-0 transition-colors ${isActive ? 'text-primary-400' : ''}`} />
-              {item.label}
-              {isActive && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-400" />
-              )}
-            </button>
-          )
-        })}
+      <nav className="flex-1 px-4 py-4 relative overflow-y-auto">
+        {NAV_SECTIONS.map((section, sectionIdx) => (
+          <div key={section.label} className={sectionIdx > 0 ? 'mt-5' : ''}>
+            <p className="px-3.5 pb-1.5 text-[0.6rem] font-semibold text-slate-500 uppercase tracking-widest">
+              {section.label}
+            </p>
+            <div className="space-y-0.5">
+              {section.items.map(item => {
+                const isActive = currentPage === item.id
+                const Icon = item.icon
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNav(item.id)}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200
+                      ${isActive
+                        ? 'bg-primary-500/15 text-primary-400 shadow-sm shadow-primary-500/5'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                      }`}
+                    style={{ fontFamily: 'var(--font-heading)' }}
+                  >
+                    <Icon className={`w-[18px] h-[18px] shrink-0 transition-colors ${isActive ? 'text-primary-400' : ''}`} />
+                    {item.label}
+                    {isActive && (
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-400" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}
