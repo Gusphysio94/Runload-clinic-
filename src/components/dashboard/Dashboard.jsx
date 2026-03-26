@@ -24,6 +24,7 @@ import {
   generateRecommendations,
   getWeeklyHistory,
 } from '../../utils/calculations'
+import { SESSION_TYPES } from '../../constants'
 
 const CHART_COLORS = {
   primary: '#ee7b18',
@@ -206,6 +207,34 @@ export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
         recommendations={recommendations}
         onNavigate={onNavigate}
       />
+
+      {/* Dernière séance */}
+      {sessions.length > 0 && (() => {
+        const last = [...sessions].sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+        const typeLabel = SESSION_TYPES.find(t => t.value === last.sessionType)?.label || last.sessionType
+        const daysDiff = Math.round((now - new Date(last.date)) / (1000 * 60 * 60 * 24))
+        const dayLabel = daysDiff === 0 ? "Aujourd'hui" : daysDiff === 1 ? 'Hier' : `Il y a ${daysDiff} j`
+        return (
+          <div className="flex items-center gap-3 px-4 py-3 bg-surface-card rounded-xl border border-border/60 shadow-sm shadow-black/[0.02]">
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-text-primary truncate" style={{ fontFamily: 'var(--font-heading)' }}>
+                {typeLabel} — {last.distance ? `${last.distance} km` : ''}{last.duration ? ` · ${last.duration} min` : ''}
+              </p>
+              <p className="text-[0.65rem] text-text-muted">{dayLabel} · RPE {last.rpe}/10</p>
+            </div>
+            {onNavigate && (
+              <button onClick={() => onNavigate('history')} className="text-[0.65rem] font-semibold text-primary-500 hover:text-primary-600 px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors shrink-0">
+                Historique
+              </button>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Jauge + Alertes */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
