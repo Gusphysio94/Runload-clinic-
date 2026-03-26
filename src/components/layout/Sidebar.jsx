@@ -21,6 +21,8 @@ const NAV_SECTIONS = [
     label: 'Outils cliniques',
     items: [
       { id: 'vma-calculator', label: 'Calculateur VMA', icon: VMAIcon },
+      { id: 'pace-converter', label: 'Allure / Vitesse', icon: PaceIcon },
+      { id: 'race-predictor', label: 'Prédiction course', icon: ClockIcon },
       { id: 'critical-speed', label: 'Vitesse critique', icon: SpeedIcon },
       { id: 'lactate', label: 'Test lactate', icon: LactateIcon },
       { id: 'injury-guide', label: 'Guide blessure', icon: InjuryIcon },
@@ -399,6 +401,22 @@ function ShoeIcon({ className }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 18h18v1.5H3V18zm0-1.5c0-1.5 1.5-3 3-4.5 1-1 2.5-1.5 4-1.5h1c1.5 0 3-.5 4-1.5l3-3c.5-.5 1.2-.8 1.8-.5.8.4 1.2 1.2 1.2 2v3c0 2-1 3.5-2 4.5-.8.8-2 1.5-3.5 1.5H3z" />
+    </svg>
+  )
+}
+
+function PaceIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+    </svg>
+  )
+}
+
+function ClockIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   )
 }

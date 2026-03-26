@@ -14,6 +14,8 @@ import { LegalPage } from './components/legal/LegalPage'
 import { ReturnToRun } from './components/tools/ReturnToRun'
 import { TrendsDashboard } from './components/trends/TrendsDashboard'
 import { VMACalculator } from './components/tools/VMACalculator'
+import { RacePredictor } from './components/tools/RacePredictor'
+import { PaceConverter } from './components/tools/PaceConverter'
 
 function App() {
   const store = useStore()
@@ -147,6 +149,14 @@ function App() {
               }
             }}
           />
+        )
+      case 'pace-converter':
+        return (
+          <PaceConverter patient={store.patient} />
+        )
+      case 'race-predictor':
+        return (
+          <RacePredictor patient={store.patient} />
         )
       case 'minimalist-index':
         return (
