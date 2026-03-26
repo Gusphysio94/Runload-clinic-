@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Card } from '../ui/Card'
+import { formatTime, formatPaceFromSeconds } from '../../utils/paceCalculator'
 
 // Distances cibles avec catégorisation
 const TARGET_DISTANCES = [
@@ -39,7 +40,15 @@ export function RacePredictor({ patient }) {
   const [hours, setHours] = useState('')
   const [minutes, setMinutes] = useState('')
   const [seconds, setSeconds] = useState('')
-  const [riegelK, setRiegelK] = useState(1.06)
+  const [riegelK, setRiegelK] = useState(() => {
+    if (patient?.riegelK) {
+      const closest = RIEGEL_PROFILES.reduce((best, p) =>
+        Math.abs(p.value - patient.riegelK) < Math.abs(best.value - patient.riegelK) ? p : best
+      )
+      return closest.value
+    }
+    return 1.06
+  })
 
   const actualRefDistance = refDistance === 0 ? Number(customDistance) || 0 : refDistance
   const totalSeconds = (Number(hours) || 0) * 3600 + (Number(minutes) || 0) * 60 + (Number(seconds) || 0)
@@ -59,7 +68,7 @@ export function RacePredictor({ patient }) {
           ...d,
           timeSeconds: predictedTime,
           timeFormatted: formatTime(predictedTime),
-          pace: formatPace(predictedTime / (d.meters / 1000)),
+          pace: formatPaceFromSeconds(predictedTime / (d.meters / 1000)),
           speedKmh: ((d.meters / predictedTime) * 3.6).toFixed(1),
         }
       })
@@ -72,7 +81,7 @@ export function RacePredictor({ patient }) {
     const paceSec = totalSeconds / (actualRefDistance / 1000)
     return {
       speedKmh: speedKmh.toFixed(1),
-      pace: formatPace(paceSec),
+      pace: formatPaceFromSeconds(paceSec),
     }
   }, [actualRefDistance, totalSeconds])
 
@@ -208,8 +217,8 @@ export function RacePredictor({ patient }) {
                 </button>
               ))}
               {patient?.riegelK && (
-                <p className="text-[0.65rem] text-text-muted pt-1">
-                  Profil calculé via vitesse critique : k = {patient.riegelK.toFixed(3)}
+                <p className="text-[0.65rem] text-primary-500 bg-primary-500/5 border border-primary-400/20 rounded-lg px-3 py-1.5 mt-2">
+                  Profil calculé via vitesse critique : <strong>k = {patient.riegelK.toFixed(3)}</strong>
                 </p>
               )}
             </div>
@@ -297,18 +306,3 @@ export function RacePredictor({ patient }) {
   )
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatTime(totalSeconds) {
-  const h = Math.floor(totalSeconds / 3600)
-  const m = Math.floor((totalSeconds % 3600) / 60)
-  const s = Math.round(totalSeconds % 60)
-  if (h > 0) return `${h}h${String(m).padStart(2, '0')}'${String(s).padStart(2, '0')}"`
-  return `${m}'${String(s).padStart(2, '0')}"`
-}
-
-function formatPace(totalSecondsPerKm) {
-  const m = Math.floor(totalSecondsPerKm / 60)
-  const s = Math.round(totalSecondsPerKm % 60)
-  return `${m}'${String(s).padStart(2, '0')}"`
-}

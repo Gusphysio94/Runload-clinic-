@@ -1,14 +1,20 @@
 import { useState, useMemo } from 'react'
 import { Card } from '../ui/Card'
+import { INTENSITY_ZONES } from '../../constants'
+import { parseZoneRange, formatPaceFromSpeed, calcPaceFromSpeed, formatPace } from '../../utils/paceCalculator'
 
-// Zones d'intensité avec % VMA
-const ZONES = [
-  { id: 'z1', label: 'Z1 — Récupération', range: [55, 65], color: '#22c55e' },
-  { id: 'z2', label: 'Z2 — Endurance fondamentale', range: [65, 75], color: '#10b981' },
-  { id: 'z3', label: 'Z3 — Tempo / Seuil aérobie', range: [75, 85], color: '#f59e0b' },
-  { id: 'z4', label: 'Z4 — Seuil anaérobie', range: [85, 95], color: '#f97316' },
-  { id: 'z5', label: 'Z5 — VMA / PMA', range: [95, 110], color: '#ef4444' },
-]
+// Mapper les zones depuis les constantes pour réutilisation
+const ZONES = INTENSITY_ZONES.map(z => {
+  const vmaRange = parseZoneRange(z.ranges.vma)
+  const vcRange = parseZoneRange(z.ranges.vc)
+  return {
+    id: `z${z.zone}`,
+    label: z.label,
+    rangeVma: vmaRange ? [vmaRange.low * 100, vmaRange.high * 100] : [0, 0],
+    rangeVc: vcRange ? [vcRange.low * 100, vcRange.high * 100] : [0, 0],
+    color: z.color,
+  }
+})
 
 export function PaceConverter({ patient }) {
   const [mode, setMode] = useState('speed') // 'speed' | 'pace'
@@ -22,18 +28,17 @@ export function PaceConverter({ patient }) {
       const speed = Number(speedInput)
       if (!speed || speed <= 0 || speed > 40) return null
       const paceTotal = 60 / speed // min/km
-      const m = Math.floor(paceTotal)
-      const s = Math.round((paceTotal - m) * 60)
+      const pace = calcPaceFromSpeed(speed)
       return {
         speedKmh: speed,
-        paceMin: m,
-        paceSec: s,
-        paceFormatted: `${m}'${String(s).padStart(2, '0')}"/km`,
+        paceMin: pace?.min || 0,
+        paceSec: pace?.sec || 0,
+        paceFormatted: formatPaceFromSpeed(speed),
         speedMs: (speed / 3.6).toFixed(2),
         speedMph: (speed * 0.621371).toFixed(1),
-        paceMile: formatPace((paceTotal * 1.60934)),
-        per400m: formatPace(paceTotal * 0.4),
-        per200m: formatPace(paceTotal * 0.2),
+        paceMile: formatMinutes(paceTotal * 1.60934),
+        per400m: formatMinutes(paceTotal * 0.4),
+        per200m: formatMinutes(paceTotal * 0.2),
       }
     } else {
       const m = Number(paceMin) || 0
@@ -45,34 +50,35 @@ export function PaceConverter({ patient }) {
         speedKmh: Number(speed.toFixed(1)),
         paceMin: m,
         paceSec: s,
-        paceFormatted: `${m}'${String(s).padStart(2, '0')}"/km`,
+        paceFormatted: formatPaceFromSpeed(speed),
         speedMs: (speed / 3.6).toFixed(2),
         speedMph: (speed * 0.621371).toFixed(1),
-        paceMile: formatPace(totalMin * 1.60934),
-        per400m: formatPace(totalMin * 0.4),
-        per200m: formatPace(totalMin * 0.2),
+        paceMile: formatMinutes(totalMin * 1.60934),
+        per400m: formatMinutes(totalMin * 0.4),
+        per200m: formatMinutes(totalMin * 0.2),
       }
     }
   }, [mode, speedInput, paceMin, paceSec])
 
-  // Tableau de zones basé sur la VMA du patient
+  // Tableau de zones basé sur la VMA ou VC du patient
+  const zoneRef = patient?.vma ? 'vma' : patient?.criticalSpeed ? 'vc' : null
+  const zoneRefSpeed = patient?.vma || patient?.criticalSpeed || 0
   const zoneTable = useMemo(() => {
-    const vma = patient?.vma
-    if (!vma || vma <= 0) return null
+    if (!zoneRef || zoneRefSpeed <= 0) return null
     return ZONES.map(z => {
-      const speedLow = vma * z.range[0] / 100
-      const speedHigh = vma * z.range[1] / 100
-      const paceLow = 60 / speedHigh // allure rapide = vitesse haute
-      const paceHigh = 60 / speedLow // allure lente = vitesse basse
+      const range = zoneRef === 'vma' ? z.rangeVma : z.rangeVc
+      const speedLow = zoneRefSpeed * range[0] / 100
+      const speedHigh = zoneRefSpeed * range[1] / 100
       return {
         ...z,
+        range,
         speedLow: speedLow.toFixed(1),
         speedHigh: speedHigh.toFixed(1),
-        paceLow: formatPaceMinSec(paceLow),
-        paceHigh: formatPaceMinSec(paceHigh),
+        paceLow: formatPace(calcPaceFromSpeed(speedHigh)),
+        paceHigh: formatPace(calcPaceFromSpeed(speedLow)),
       }
     })
-  }, [patient?.vma])
+  }, [zoneRef, zoneRefSpeed])
 
   // Tableau de correspondance rapide
   const quickTable = useMemo(() => {
@@ -199,10 +205,10 @@ export function PaceConverter({ patient }) {
                   <ResultBox label="Temps au 200m" value={conversion.per200m} />
                 </div>
 
-                {/* Indication de zone si VMA disponible */}
-                {patient?.vma && (
+                {/* Indication de zone si VMA ou VC disponible */}
+                {zoneRef && (
                   <div className="mt-4">
-                    <ZoneIndicator speedKmh={conversion.speedKmh} vma={patient.vma} />
+                    <ZoneIndicator speedKmh={conversion.speedKmh} refSpeed={zoneRefSpeed} refLabel={zoneRef === 'vma' ? 'VMA' : 'VC'} />
                   </div>
                 )}
               </div>
@@ -211,7 +217,7 @@ export function PaceConverter({ patient }) {
 
           {/* Zones d'entraînement */}
           {zoneTable && (
-            <Card title={`Zones d'entraînement — VMA ${patient.vma} km/h`}>
+            <Card title={`Zones d'entraînement — ${zoneRef === 'vma' ? 'VMA' : 'VC'} ${zoneRefSpeed} km/h`}>
               <div className="space-y-1.5">
                 {zoneTable.map(z => (
                   <div
@@ -221,7 +227,7 @@ export function PaceConverter({ patient }) {
                     <div className="w-1.5 h-8 rounded-full shrink-0" style={{ backgroundColor: z.color }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-text-primary">{z.label}</p>
-                      <p className="text-[0.65rem] text-text-muted">{z.range[0]}-{z.range[1]}% VMA</p>
+                      <p className="text-[0.65rem] text-text-muted">{z.range[0]}-{z.range[1]}% {zoneRef === 'vma' ? 'VMA' : 'VC'}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-xs font-bold text-text-primary" style={{ fontFamily: 'var(--font-heading)' }}>
@@ -234,9 +240,9 @@ export function PaceConverter({ patient }) {
                   </div>
                 ))}
               </div>
-              {!patient?.vma && (
+              {!zoneRef && (
                 <p className="text-[0.65rem] text-text-muted mt-3">
-                  Renseignez la VMA dans le profil patient pour afficher les zones personnalisées.
+                  Renseignez la VMA ou la vitesse critique dans le profil patient pour afficher les zones personnalisées.
                 </p>
               )}
             </Card>
@@ -299,10 +305,12 @@ function ResultBox({ label, value, highlight }) {
   )
 }
 
-function ZoneIndicator({ speedKmh, vma }) {
-  const pctVma = (speedKmh / vma) * 100
-  const zone = ZONES.find(z => pctVma >= z.range[0] && pctVma < z.range[1])
-    || (pctVma >= 110 ? { label: 'Au-dessus de Z5', color: '#dc2626' } : null)
+function ZoneIndicator({ speedKmh, refSpeed, refLabel }) {
+  const pct = (speedKmh / refSpeed) * 100
+  const zone = ZONES.find(z => {
+    const range = refLabel === 'VMA' ? z.rangeVma : z.rangeVc
+    return pct >= range[0] && pct < range[1]
+  }) || (pct >= 110 ? { label: 'Au-dessus de Z5', color: '#dc2626' } : null)
 
   if (!zone) return null
 
@@ -310,7 +318,7 @@ function ZoneIndicator({ speedKmh, vma }) {
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-surface-dark/20">
       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: zone.color }} />
       <p className="text-xs text-text-secondary">
-        <span className="font-semibold text-text-primary">{Math.round(pctVma)}% VMA</span>
+        <span className="font-semibold text-text-primary">{Math.round(pct)}% {refLabel}</span>
         {' — '}
         {zone.label}
       </p>
@@ -320,13 +328,7 @@ function ZoneIndicator({ speedKmh, vma }) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatPace(totalMinutes) {
-  const m = Math.floor(totalMinutes)
-  const s = Math.round((totalMinutes - m) * 60)
-  return `${m}'${String(s).padStart(2, '0')}"`
-}
-
-function formatPaceMinSec(totalMinutes) {
+function formatMinutes(totalMinutes) {
   const m = Math.floor(totalMinutes)
   const s = Math.round((totalMinutes - m) * 60)
   return `${m}'${String(s).padStart(2, '0')}"`

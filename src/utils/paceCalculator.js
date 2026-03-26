@@ -43,6 +43,38 @@ export function formatPace(pace) {
 }
 
 /**
+ * Convertit une vitesse en km/h directement en chaîne d'allure "5'30"/km".
+ * Raccourci pratique pour éviter calcPaceFromSpeed + formatPace.
+ */
+export function formatPaceFromSpeed(speedKmh) {
+  if (!speedKmh || speedKmh <= 0) return '—'
+  const pace = calcPaceFromSpeed(speedKmh)
+  return pace ? `${pace.min}'${String(pace.sec).padStart(2, '0')}"/km` : '—'
+}
+
+/**
+ * Convertit des secondes/km en chaîne d'allure "5'30"".
+ */
+export function formatPaceFromSeconds(totalSecondsPerKm) {
+  if (!totalSecondsPerKm || totalSecondsPerKm <= 0) return '—'
+  const m = Math.floor(totalSecondsPerKm / 60)
+  const s = Math.round(totalSecondsPerKm % 60)
+  return `${m}'${String(s).padStart(2, '0')}"`
+}
+
+/**
+ * Convertit des secondes totales en chaîne de temps "1h23'45"" ou "23'45"".
+ */
+export function formatTime(totalSeconds) {
+  if (!totalSeconds || totalSeconds <= 0) return '—'
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = Math.round(totalSeconds % 60)
+  if (h > 0) return `${h}h${String(m).padStart(2, '0')}'${String(s).padStart(2, '0')}"`
+  return `${m}'${String(s).padStart(2, '0')}"`
+}
+
+/**
  * Calcule les allures / FC / % pour chaque zone Z1-Z5
  * en fonction des données du patient.
  *

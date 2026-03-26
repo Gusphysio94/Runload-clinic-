@@ -7,6 +7,7 @@ import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { FormField, Input } from '../ui/FormField'
 import { analyzeLactateTest } from '../../utils/lactateTest'
+import { formatPaceFromSpeed } from '../../utils/paceCalculator'
 
 const DEFAULT_STAGES = [
   { speed: '8', lactate: '', hr: '', rpe: '' },
@@ -46,7 +47,7 @@ const INTERP_STYLES = {
   info: { bg: 'bg-blue-50 border-blue-200', icon: 'ℹ️', title: 'text-blue-800', text: 'text-blue-700' },
 }
 
-export function LactateTestCalculator({ patient }) {
+export function LactateTestCalculator({ patient, onApplyToProfile }) {
   const [stages, setStages] = useState(DEFAULT_STAGES)
   const [testDate, setTestDate] = useState(new Date().toISOString().split('T')[0])
   const [protocol, setProtocol] = useState('')
@@ -86,13 +87,7 @@ export function LactateTestCalculator({ patient }) {
     setResult(analyzeLactateTest(parsed))
   }
 
-  const formatPace = (speedKmh) => {
-    if (!speedKmh || speedKmh === 0) return '—'
-    const paceMin = 60 / speedKmh
-    const min = Math.floor(paceMin)
-    const sec = Math.round((paceMin - min) * 60)
-    return `${min}'${String(sec).padStart(2, '0')}"/km`
-  }
+  const formatPace = formatPaceFromSpeed
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -231,7 +226,7 @@ export function LactateTestCalculator({ patient }) {
             <p className="text-center text-risk-red font-medium py-4">{result.error}</p>
           </Card>
         ) : (
-          <LactateResults result={result} formatPace={formatPace} patient={patient} />
+          <LactateResults result={result} formatPace={formatPace} patient={patient} onApplyToProfile={onApplyToProfile} />
         )
       )}
     </div>
@@ -240,7 +235,7 @@ export function LactateTestCalculator({ patient }) {
 
 // ─── Sous-composant résultats ───────────────────────────────────────────
 
-function LactateResults({ result, formatPace, patient: _patient }) {
+function LactateResults({ result, formatPace, patient, onApplyToProfile }) {
   const { lt1, lt2, lt1HR, lt2HR, methods, zones, interpretation, stats, curve, stages } = result
 
   return (
@@ -294,6 +289,31 @@ function LactateResults({ result, formatPace, patient: _patient }) {
           <MiniStat label="Vitesse max test" value={`${stats.maxSpeed} km/h`} />
           <MiniStat label="Écart LT1-LT2" value={stats.lt1lt2Gap ? `${stats.lt1lt2Gap.toFixed(1)} km/h` : '—'} />
         </div>
+
+        {/* Appliquer au profil */}
+        {onApplyToProfile && (lt1 || lt2) && (
+          <div className="mt-5 pt-4 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="text-sm text-text-secondary">
+              {patient?.lt1Speed || patient?.lt2Speed
+                ? `Valeurs actuelles : LT1 ${patient.lt1Speed || '—'} km/h · LT2 ${patient.lt2Speed || '—'} km/h`
+                : 'Aucun seuil lactique dans le profil'
+              }
+            </div>
+            <button
+              onClick={() => onApplyToProfile({
+                lt1Speed: lt1 ? Number(lt1.speed.toFixed(1)) : undefined,
+                lt2Speed: lt2 ? Number(lt2.speed.toFixed(1)) : undefined,
+                lt1HR: lt1HR || undefined,
+                lt2HR: lt2HR || undefined,
+              })}
+              className="px-4 py-2 bg-gradient-to-b from-emerald-500 to-emerald-600 text-white text-sm font-semibold rounded-xl
+                hover:from-emerald-500 hover:to-emerald-700 shadow-sm shadow-emerald-600/25 transition-all duration-200 shrink-0"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              Appliquer au profil
+            </button>
+          </div>
+        )}
       </Card>
 
       {/* Concordance des méthodes */}

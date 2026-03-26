@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Card } from '../ui/Card'
 import { VMA_TESTS, estimateVO2max, VMA_REFERENCE } from '../../utils/vmaTests'
+import { formatPaceFromSpeed } from '../../utils/paceCalculator'
 
 export function VMACalculator({ patient, onApplyToProfile }) {
   const [selectedTest, setSelectedTest] = useState(VMA_TESTS[0].id)
@@ -162,7 +163,7 @@ export function VMACalculator({ patient, onApplyToProfile }) {
                   <div>
                     <p className="text-[0.6rem] font-semibold text-text-muted uppercase tracking-wider">Allure VMA</p>
                     <p className="text-xl font-bold text-text-primary mt-0.5" style={{ fontFamily: 'var(--font-heading)' }}>
-                      {formatPace(result.vma)}
+                      {formatPaceFromSpeed(result.vma).replace('"/km', '')}
                     </p>
                     <p className="text-[0.65rem] text-text-muted">/km</p>
                   </div>
@@ -249,14 +250,6 @@ export function VMACalculator({ patient, onApplyToProfile }) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatPace(speedKmh) {
-  if (!speedKmh || speedKmh === 0) return '—'
-  const paceMin = 60 / speedKmh
-  const min = Math.floor(paceMin)
-  const sec = Math.round((paceMin - min) * 60)
-  return `${min}'${sec.toString().padStart(2, '0')}"`
-}
 
 function VMALevelBadge({ vma, gender }) {
   const isFemale = gender === 'F' || gender === 'female'

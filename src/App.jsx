@@ -9,7 +9,7 @@ import { CriticalSpeedCalculator } from './components/tools/CriticalSpeedCalcula
 import { LactateTestCalculator } from './components/tools/LactateTestCalculator'
 import { InjuryGuidance } from './components/tools/InjuryGuidance'
 import { TrainingPlan } from './components/planification/TrainingPlan'
-import { MinimalistIndex } from './components/tools/MinimalistIndex'
+import { ChaussageDashboard } from './components/chaussage/ChaussageDashboard'
 import { LegalPage } from './components/legal/LegalPage'
 import { ReturnToRun } from './components/tools/ReturnToRun'
 import { TrendsDashboard } from './components/trends/TrendsDashboard'
@@ -118,19 +118,29 @@ function App() {
         return (
           <CriticalSpeedCalculator
             patient={store.patient}
-            onApplyToProfile={(csKmh) => {
+            onApplyToProfile={(csKmh, extras) => {
               if (store.patient) {
-                store.updatePatient({
+                const updates = {
                   criticalSpeed: Number(csKmh.toFixed(2)),
                   intensityReference: 'vc',
-                })
+                }
+                if (extras?.riegelK) updates.riegelK = extras.riegelK
+                if (extras?.dPrime) updates.dPrime = extras.dPrime
+                store.updatePatient(updates)
               }
             }}
           />
         )
       case 'lactate':
         return (
-          <LactateTestCalculator patient={store.patient} />
+          <LactateTestCalculator
+            patient={store.patient}
+            onApplyToProfile={(data) => {
+              if (store.patient && data) {
+                store.updatePatient(data)
+              }
+            }}
+          />
         )
       case 'injury-guide':
         return (
@@ -158,9 +168,9 @@ function App() {
         return (
           <RacePredictor patient={store.patient} />
         )
-      case 'minimalist-index':
+      case 'chaussage':
         return (
-          <MinimalistIndex />
+          <ChaussageDashboard patient={store.patient} store={store} />
         )
       case 'return-to-run':
         return (

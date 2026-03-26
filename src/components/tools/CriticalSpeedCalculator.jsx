@@ -7,6 +7,7 @@ import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { FormField, Input } from '../ui/FormField'
 import { calcCSFromFixedDistances, calcCSFromFixedDurations, analyzeRunnerProfile } from '../../utils/criticalSpeed'
+import { formatPaceFromSpeed } from '../../utils/paceCalculator'
 
 const DEFAULT_FIXED_DISTANCES = [
   { distanceM: 800, minutes: '', seconds: '' },
@@ -80,7 +81,12 @@ export function CriticalSpeedCalculator({ patient, onApplyToProfile }) {
 
   const handleApply = () => {
     if (result && !result.error && onApplyToProfile) {
-      onApplyToProfile(result.csKmh)
+      // Sauvegarder VC + riegelK + dPrime en une seule opération
+      const analysis = analyzeRunnerProfile(result)
+      onApplyToProfile(result.csKmh, {
+        riegelK: analysis?.riegelK || null,
+        dPrime: result.dPrime ? Math.round(result.dPrime) : null,
+      })
     }
   }
 
@@ -115,7 +121,7 @@ export function CriticalSpeedCalculator({ patient, onApplyToProfile }) {
 
   const chartData = result && !result.error ? getChartData() : null
 
-  const formatPace = (min, sec) => `${min}'${String(sec).padStart(2, '0')}"/km`
+  const _formatPace = formatPaceFromSpeed
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -276,7 +282,7 @@ export function CriticalSpeedCalculator({ patient, onApplyToProfile }) {
                   </p>
                   <p className="text-sm text-primary-600">km/h</p>
                   <p className="text-sm text-text-secondary mt-1">
-                    {formatPace(result.csPace.min, result.csPace.sec)}
+                    {formatPaceFromSpeed(result.csKmh)}
                   </p>
                 </div>
                 <div className="text-center p-4 bg-surface rounded-xl">
@@ -412,22 +418,17 @@ export function CriticalSpeedCalculator({ patient, onApplyToProfile }) {
                   { zone: 'Z3 — Tempo', pct: '85–95%', speed: result.csKmh * 0.95, color: '#eab308' },
                   { zone: 'Z4 — Seuil (≈VC)', pct: '95–105%', speed: result.csKmh * 1.05, color: '#f97316' },
                   { zone: 'Z5 — Supra-VC', pct: '> 105%', speed: result.csKmh * 1.10, color: '#ef4444' },
-                ].map((z, i) => {
-                  const paceVal = 60 / z.speed
-                  const pMin = Math.floor(paceVal)
-                  const pSec = Math.round((paceVal - pMin) * 60)
-                  return (
+                ].map((z, i) => (
                     <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface transition-colors">
                       <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: z.color }} />
                       <span className="text-sm font-medium w-40">{z.zone}</span>
                       <span className="text-xs text-text-muted w-20">{z.pct}</span>
                       <span className="text-sm font-medium w-24">≤ {z.speed.toFixed(1)} km/h</span>
                       <span className="text-xs text-text-secondary">
-                        ({pMin}'{String(pSec).padStart(2, '0')}"/km)
+                        ({formatPaceFromSpeed(z.speed)})
                       </span>
                     </div>
-                  )
-                })}
+                  ))}
               </div>
             </Card>
 

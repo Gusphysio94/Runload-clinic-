@@ -9,8 +9,17 @@ function getInjuryLabel(value) {
   return INJURY_TYPES.find(t => t.value === value)?.label || value
 }
 
+// Trouver la blessure active la plus récente dans le profil patient
+function getRecentActiveInjury(patient) {
+  if (!patient?.injuries?.length) return ''
+  const active = patient.injuries
+    .filter(i => i.status === 'ongoing' || i.status === 'chronic')
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+  return active[0]?.type || ''
+}
+
 export function ReturnToRun({ patient }) {
-  const [injuryType, setInjuryType] = useState('')
+  const [injuryType, setInjuryType] = useState(() => getRecentActiveInjury(patient))
   const [weeksOff, setWeeksOff] = useState('4')
   const [level, setLevel] = useState(patient?.level || 'intermediaire')
   const [targetVolume, setTargetVolume] = useState(patient?.weeklyVolumeRef || '30')

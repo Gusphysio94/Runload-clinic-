@@ -26,7 +26,7 @@ const NAV_SECTIONS = [
       { id: 'critical-speed', label: 'Vitesse critique', icon: SpeedIcon },
       { id: 'lactate', label: 'Test lactate', icon: LactateIcon },
       { id: 'injury-guide', label: 'Guide blessure', icon: InjuryIcon },
-      { id: 'minimalist-index', label: 'Indice minimaliste', icon: ShoeIcon },
+      { id: 'chaussage', label: 'Chaussage', icon: ShoeIcon },
     ],
   },
   {
