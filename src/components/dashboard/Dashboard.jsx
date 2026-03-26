@@ -114,7 +114,7 @@ export function Dashboard({ patient, sessions, trainingPlan }) {
         <div className="min-w-0">
           <h2 className="text-xl md:text-2xl font-bold text-text-primary tracking-tight">Tableau de bord</h2>
           <p className="text-text-secondary text-sm mt-1 truncate">
-            {patient.firstName} {patient.lastName} — Semaine en cours
+            Synthèse hebdomadaire de la charge, du risque et du bien-être de {patient.firstName}.
           </p>
         </div>
         <button

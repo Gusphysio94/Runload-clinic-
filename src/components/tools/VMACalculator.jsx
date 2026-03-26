@@ -49,7 +49,7 @@ export function VMACalculator({ patient, onApplyToProfile }) {
           Calculateur de VMA
         </h2>
         <p className="text-text-secondary text-sm mt-1">
-          Estimation de la Vitesse Maximale Aérobie à partir de tests terrain
+          Estimez la VMA à partir de 6 tests terrain et appliquez le résultat au profil patient.
         </p>
       </div>
 

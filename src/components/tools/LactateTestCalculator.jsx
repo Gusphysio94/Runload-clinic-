@@ -94,7 +94,7 @@ export function LactateTestCalculator({ patient, onApplyToProfile }) {
       <div>
         <h2 className="text-2xl font-bold text-text-primary tracking-tight">Test Lactate</h2>
         <p className="text-text-secondary text-sm mt-1">
-          Analyse des seuils et zones d'entraînement par test lactate par paliers
+          Analysez un test lactate par paliers pour déterminer les seuils et zones d'entraînement.
         </p>
       </div>
 

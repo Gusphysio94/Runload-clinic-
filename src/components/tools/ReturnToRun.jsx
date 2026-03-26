@@ -60,7 +60,7 @@ export function ReturnToRun({ patient }) {
           Protocole de reprise course
         </h2>
         <p className="text-text-secondary text-sm mt-1">
-          Génération d'un plan walk/run progressif post-blessure basé sur les guidelines actuelles
+          Générez un protocole de reprise marche/course progressif adapté à la blessure du patient.
         </p>
       </div>
 

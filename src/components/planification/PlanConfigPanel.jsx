@@ -22,7 +22,7 @@ export function PlanConfigPanel({ patient, onGenerate }) {
           Planification
         </h2>
         <p className="text-text-secondary text-sm mt-1">
-          Générer un plan d'entraînement sur 4 semaines adapté au profil patient
+          Générez un plan d'entraînement polarisé sur 4 semaines adapté au profil du patient.
         </p>
       </div>
 

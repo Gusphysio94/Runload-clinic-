@@ -61,7 +61,7 @@ export function PatientProfile({ patient, onSave }) {
         <div>
           <h2 className="text-2xl font-bold text-text-primary tracking-tight">Profil Patient</h2>
           <p className="text-text-secondary text-sm mt-1">
-            {patient ? `${patient.firstName} ${patient.lastName}` : 'Nouveau patient'}
+            Renseignez les informations, objectifs et antécédents du patient.
           </p>
         </div>
         <Button onClick={handleSave}>

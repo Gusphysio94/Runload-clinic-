@@ -58,8 +58,7 @@ export function TrainingPlan({ patient, store }) {
             Planification
           </h2>
           <p className="text-text-secondary text-sm mt-1">
-            Plan {plan.runsPerWeek} séances/semaine
-            {plan.startDate && ` — début le ${new Date(plan.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`}
+            Suivez et ajustez le plan d'entraînement du patient — {plan.runsPerWeek} séances/semaine.
           </p>
         </div>
         <div className="flex items-center gap-3">

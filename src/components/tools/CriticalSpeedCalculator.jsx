@@ -128,7 +128,7 @@ export function CriticalSpeedCalculator({ patient, onApplyToProfile }) {
       <div>
         <h2 className="text-2xl font-bold text-text-primary tracking-tight">Calculateur de Vitesse Critique</h2>
         <p className="text-text-secondary text-sm mt-1">
-          Modèle linéaire distance-temps (Monod & Scherrer, 1965 ; Hill, 1993)
+          Calculez la vitesse critique et le profil coureur à partir de 2 à 5 performances chronométrées.
         </p>
       </div>
 

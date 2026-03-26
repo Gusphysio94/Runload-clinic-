@@ -90,7 +90,7 @@ export function TrendsDashboard({ patient, sessions }) {
             Tendances
           </h2>
           <p className="text-text-secondary text-sm mt-1 truncate">
-            {patient.firstName} {patient.lastName} — Vue longitudinale
+            Visualisez l'évolution de la charge, du bien-être et des indicateurs sur plusieurs semaines.
           </p>
         </div>
 

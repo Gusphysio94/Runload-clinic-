@@ -99,7 +99,7 @@ export function PaceConverter({ patient }) {
           Convertisseur allure / vitesse
         </h2>
         <p className="text-text-secondary text-sm mt-1">
-          Conversion instantanée min/km ↔ km/h avec tableau de zones
+          Convertissez une vitesse en allure (et inversement) avec les zones d'entraînement associées.
         </p>
       </div>
 

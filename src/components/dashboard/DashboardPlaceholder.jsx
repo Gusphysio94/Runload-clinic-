@@ -19,7 +19,7 @@ export function DashboardPlaceholder({ patient, sessions }) {
       <div>
         <h2 className="text-2xl font-bold text-text-primary">Tableau de bord</h2>
         <p className="text-text-secondary text-sm mt-1">
-          {patient ? `${patient.firstName} ${patient.lastName}` : 'Aucun patient — créez un profil pour commencer'}
+          Créez un profil patient et enregistrez des séances pour activer le tableau de bord.
         </p>
       </div>
 

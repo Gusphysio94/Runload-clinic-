@@ -92,7 +92,7 @@ export function RacePredictor({ patient }) {
           Prédicteur de temps de course
         </h2>
         <p className="text-text-secondary text-sm mt-1">
-          Estimation des temps sur différentes distances — Modèle de Riegel (1981)
+          Estimez les temps de course sur toutes les distances à partir d'une performance de référence.
         </p>
       </div>
 

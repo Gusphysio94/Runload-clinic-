@@ -41,7 +41,7 @@ export function InjuryGuidance({ patient }) {
       <div>
         <h2 className="text-2xl font-bold text-text-primary tracking-tight">Je suis bless&eacute;</h2>
         <p className="text-text-secondary text-sm mt-1">
-          Guide de gestion de la charge selon la pathologie &mdash; bas&eacute; sur la Clinique du Coureur et la litt&eacute;rature scientifique
+          Consultez les recommandations de gestion de la charge adapt&eacute;es &agrave; chaque pathologie du coureur.
         </p>
       </div>
 

@@ -214,7 +214,7 @@ export function MinimalistIndex() {
           Indice Minimaliste
         </h2>
         <p className="text-text-secondary text-sm mt-1">
-          Cotation des chaussures de course — Esculier, Dubois, Roy &amp; Dionne (2014)
+          Calculez le score minimaliste d'une chaussure selon le bar&egrave;me Esculier et al. (2014).
         </p>
       </div>
 
