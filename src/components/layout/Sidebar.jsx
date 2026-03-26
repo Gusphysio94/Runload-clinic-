@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { id: 'patient', label: 'Profil patient', icon: UserIcon },
   { id: 'session', label: 'Nouvelle séance', icon: PlusIcon },
   { id: 'history', label: 'Historique', icon: ListIcon },
+  { id: 'trends', label: 'Tendances', icon: TrendIcon },
   { id: 'planification', label: 'Planification', icon: CalendarIcon },
   { id: 'injury-guide', label: 'Je suis blessé', icon: InjuryIcon },
   { id: 'critical-speed', label: 'Vitesse critique', icon: SpeedIcon },
@@ -365,6 +366,14 @@ function ShoeIcon({ className }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 18h18v1.5H3V18zm0-1.5c0-1.5 1.5-3 3-4.5 1-1 2.5-1.5 4-1.5h1c1.5 0 3-.5 4-1.5l3-3c.5-.5 1.2-.8 1.8-.5.8.4 1.2 1.2 1.2 2v3c0 2-1 3.5-2 4.5-.8.8-2 1.5-3.5 1.5H3z" />
+    </svg>
+  )
+}
+
+function TrendIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
     </svg>
   )
 }

@@ -626,6 +626,18 @@ export function getWeeklyHistory(sessions, patient, weeks = 8) {
     const wellness = calcAvgWellness(sessions, refDate)
     const monotony = calcMonotony(sessions, refDate)
     const risk = calcRiskScore(sessions, patient, refDate)
+    const strainVal = calcStrain(sessions, refDate)
+
+    // Composantes bien-être détaillées (moyennes de la semaine)
+    const wellnessComponents = calcWellnessComponents(weekSessions)
+
+    // RPE moyen de la semaine
+    const avgRpe = weekSessions.length > 0
+      ? Number((weekSessions.reduce((sum, s) => sum + (s.rpe || 5), 0) / weekSessions.length).toFixed(1))
+      : null
+
+    // Découplage moyen
+    const decoupling = calcAvgDecoupling(sessions, refDate)
 
     history.push({
       week: weekLabel,
@@ -634,10 +646,36 @@ export function getWeeklyHistory(sessions, patient, weeks = 8) {
       load: Math.round(load),
       wellness,
       monotony: Number(monotony.toFixed(2)),
+      strain: Math.round(strainVal),
       riskScore: risk.score,
       sessions: weekSessions.length,
+      avgRpe,
+      decoupling: decoupling !== null ? Number(decoupling.toFixed(1)) : null,
+      ...wellnessComponents,
     })
   }
 
   return history
+}
+
+/**
+ * Calcule les moyennes des composantes de bien-être pour une liste de séances.
+ * Retourne les valeurs brutes moyennées (pas normalisées).
+ */
+function calcWellnessComponents(sessions) {
+  if (sessions.length === 0) {
+    return { fatigue: null, sleep: null, stress: null, mood: null, pain: null }
+  }
+
+  const n = sessions.length
+  const fatigue = Number((sessions.reduce((s, x) => s + (x.fatigue || 5), 0) / n).toFixed(1))
+  const sleep = Number((sessions.reduce((s, x) => s + (x.sleepQuality || 3), 0) / n).toFixed(1))
+  const stress = Number((sessions.reduce((s, x) => s + (x.lifeStress || 3), 0) / n).toFixed(1))
+  const mood = Number((sessions.reduce((s, x) => s + (x.mood || 3), 0) / n).toFixed(1))
+  const painSessions = sessions.filter(x => x.hasPain)
+  const pain = painSessions.length > 0
+    ? Number((painSessions.reduce((s, x) => s + (x.painIntensity || 0), 0) / painSessions.length).toFixed(1))
+    : 0
+
+  return { fatigue, sleep, stress, mood, pain }
 }

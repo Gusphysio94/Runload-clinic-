@@ -12,6 +12,7 @@ import { TrainingPlan } from './components/planification/TrainingPlan'
 import { MinimalistIndex } from './components/tools/MinimalistIndex'
 import { LegalPage } from './components/legal/LegalPage'
 import { ReturnToRun } from './components/tools/ReturnToRun'
+import { TrendsDashboard } from './components/trends/TrendsDashboard'
 
 function App() {
   const store = useStore()
@@ -95,6 +96,13 @@ function App() {
               onDelete={handleDeleteSession}
             />
           </div>
+        )
+      case 'trends':
+        return (
+          <TrendsDashboard
+            patient={store.patient}
+            sessions={store.sessions}
+          />
         )
       case 'planification':
         return (
