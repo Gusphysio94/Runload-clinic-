@@ -13,6 +13,7 @@ import { MinimalistIndex } from './components/tools/MinimalistIndex'
 import { LegalPage } from './components/legal/LegalPage'
 import { ReturnToRun } from './components/tools/ReturnToRun'
 import { TrendsDashboard } from './components/trends/TrendsDashboard'
+import { VMACalculator } from './components/tools/VMACalculator'
 
 function App() {
   const store = useStore()
@@ -132,6 +133,20 @@ function App() {
       case 'injury-guide':
         return (
           <InjuryGuidance patient={store.patient} />
+        )
+      case 'vma-calculator':
+        return (
+          <VMACalculator
+            patient={store.patient}
+            onApplyToProfile={(vma) => {
+              if (store.patient) {
+                store.updatePatient({
+                  vma: Number(vma.toFixed(1)),
+                  intensityReference: 'vma',
+                })
+              }
+            }}
+          />
         )
       case 'minimalist-index':
         return (
