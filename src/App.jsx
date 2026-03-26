@@ -11,6 +11,7 @@ import { InjuryGuidance } from './components/tools/InjuryGuidance'
 import { TrainingPlan } from './components/planification/TrainingPlan'
 import { MinimalistIndex } from './components/tools/MinimalistIndex'
 import { LegalPage } from './components/legal/LegalPage'
+import { ReturnToRun } from './components/tools/ReturnToRun'
 
 function App() {
   const store = useStore()
@@ -127,6 +128,10 @@ function App() {
       case 'minimalist-index':
         return (
           <MinimalistIndex />
+        )
+      case 'return-to-run':
+        return (
+          <ReturnToRun patient={store.patient} />
         )
       case 'legal':
         return (

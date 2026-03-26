@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { id: 'critical-speed', label: 'Vitesse critique', icon: SpeedIcon },
   { id: 'lactate', label: 'Test lactate', icon: LactateIcon },
   { id: 'minimalist-index', label: 'Indice minimaliste', icon: ShoeIcon },
+  { id: 'return-to-run', label: 'Reprise course', icon: ReturnRunIcon },
 ]
 
 export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, onCloseMobile }) {
@@ -364,6 +365,14 @@ function ShoeIcon({ className }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 18h18v1.5H3V18zm0-1.5c0-1.5 1.5-3 3-4.5 1-1 2.5-1.5 4-1.5h1c1.5 0 3-.5 4-1.5l3-3c.5-.5 1.2-.8 1.8-.5.8.4 1.2 1.2 1.2 2v3c0 2-1 3.5-2 4.5-.8.8-2 1.5-3.5 1.5H3z" />
+    </svg>
+  )
+}
+
+function ReturnRunIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
     </svg>
   )
 }
