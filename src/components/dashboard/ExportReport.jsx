@@ -6,7 +6,7 @@ import {
   generateAlerts, generateRecommendations,
 } from '../../utils/calculations'
 
-export function ExportReport({ patient, sessions, trainingPlan, onClose }) {
+export function ExportReport({ patient, sessions, trainingPlan, clinicalNotes, onClose }) {
   const reportRef = useRef(null)
 
   const now = new Date()
@@ -239,6 +239,24 @@ export function ExportReport({ patient, sessions, trainingPlan, onClose }) {
               <div key={i} className="rec-item">{i + 1}. {r}</div>
             ))}
           </div>
+
+          {/* Notes cliniques */}
+          {clinicalNotes && clinicalNotes.length > 0 && (
+            <div className="section">
+              <h2>Notes cliniques ({clinicalNotes.length})</h2>
+              {[...clinicalNotes]
+                .sort((a, b) => (b.date || b.createdAt).localeCompare(a.date || a.createdAt))
+                .map((note, i) => (
+                  <div key={note.id || i} style={{ marginBottom: '8px', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '11px', color: '#64748b', marginBottom: '2px' }}>
+                      {new Date(note.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </div>
+                    <div style={{ fontSize: '12px', whiteSpace: 'pre-wrap' }}>{note.content}</div>
+                  </div>
+                ))
+              }
+            </div>
+          )}
 
           {/* Plan d'entraînement */}
           {trainingPlan?.weeks && (

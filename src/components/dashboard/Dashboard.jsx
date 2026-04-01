@@ -71,7 +71,7 @@ function getWellnessStatus(val) {
   return 'red'
 }
 
-export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
+export function Dashboard({ patient, sessions, trainingPlan, clinicalNotes, onNavigate }) {
   const [showExport, setShowExport] = useState(false)
 
   if (!patient) {
@@ -193,6 +193,7 @@ export function Dashboard({ patient, sessions, trainingPlan, onNavigate }) {
           patient={patient}
           sessions={sessions}
           trainingPlan={trainingPlan}
+          clinicalNotes={clinicalNotes}
           onClose={() => setShowExport(false)}
         />
       )}

@@ -3,6 +3,7 @@ import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { FormField, Input, Select, TextArea } from '../ui/FormField'
 import { InjuryHistory } from './InjuryHistory'
+import { ClinicalNotes } from './ClinicalNotes'
 import {
   RUNNER_LEVELS,
   OBJECTIVES,
@@ -27,7 +28,7 @@ const EMPTY_PATIENT = {
   injuries: [],
 }
 
-export function PatientProfile({ patient, onSave }) {
+export function PatientProfile({ patient, onSave, clinicalNotes, onAddNote, onUpdateNote, onDeleteNote }) {
   const [form, setForm] = useState({ ...EMPTY_PATIENT, ...patient })
   const [activeTab, setActiveTab] = useState('general')
 
@@ -53,6 +54,7 @@ export function PatientProfile({ patient, onSave }) {
     { id: 'general', label: 'Informations générales' },
     { id: 'physio', label: 'Données physiologiques' },
     { id: 'injuries', label: `Blessures (${form.injuries.length})` },
+    { id: 'notes', label: `Notes (${(clinicalNotes || []).length})` },
   ]
 
   return (
@@ -163,7 +165,7 @@ export function PatientProfile({ patient, onSave }) {
             </FormField>
           </div>
           <div className="mt-4">
-            <FormField label="Notes cliniques">
+            <FormField label="Observations générales">
               <TextArea
                 value={form.notes}
                 onChange={e => update('notes', e.target.value)}
@@ -225,6 +227,16 @@ export function PatientProfile({ patient, onSave }) {
         <InjuryHistory
           injuries={form.injuries}
           onChange={injuries => update('injuries', injuries)}
+        />
+      )}
+
+      {/* Tab: Notes cliniques */}
+      {activeTab === 'notes' && (
+        <ClinicalNotes
+          notes={clinicalNotes}
+          onAdd={onAddNote}
+          onUpdate={onUpdateNote}
+          onDelete={onDeleteNote}
         />
       )}
     </div>

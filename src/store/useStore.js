@@ -32,6 +32,7 @@ function migrateFromLegacy(data) {
         sessions: data.sessions || [],
         wellnessLogs: data.wellnessLogs || [],
         trainingPlan: data.trainingPlan || null,
+        clinicalNotes: data.clinicalNotes || [],
       }
     }
 
@@ -67,7 +68,7 @@ export function useStore() {
 
   const activeData = useMemo(() => {
     if (!state.activePatientId || !state.patients[state.activePatientId]) {
-      return { info: null, sessions: [], wellnessLogs: [], trainingPlan: null }
+      return { info: null, sessions: [], wellnessLogs: [], trainingPlan: null, clinicalNotes: [] }
     }
     return state.patients[state.activePatientId]
   }, [state])
@@ -89,7 +90,7 @@ export function useStore() {
       ...prev,
       patients: {
         ...prev.patients,
-        [id]: { info, sessions: [], wellnessLogs: [], trainingPlan: null },
+        [id]: { info, sessions: [], wellnessLogs: [], trainingPlan: null, clinicalNotes: [] },
       },
       activePatientId: id,
     }))
@@ -138,6 +139,7 @@ export function useStore() {
             sessions: [],
             wellnessLogs: [],
             trainingPlan: null,
+            clinicalNotes: [],
           },
         },
         activePatientId: id,
@@ -267,6 +269,67 @@ export function useStore() {
     })
   }, [])
 
+  // ─── Notes cliniques (scoped au patient actif) ──────────────────────────
+
+  const addClinicalNote = useCallback((note) => {
+    const newNote = {
+      ...note,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    }
+    setState(prev => {
+      const pid = prev.activePatientId
+      if (!pid || !prev.patients[pid]) return prev
+      return {
+        ...prev,
+        patients: {
+          ...prev.patients,
+          [pid]: {
+            ...prev.patients[pid],
+            clinicalNotes: [...(prev.patients[pid].clinicalNotes || []), newNote],
+          },
+        },
+      }
+    })
+    return newNote
+  }, [])
+
+  const updateClinicalNote = useCallback((id, updates) => {
+    setState(prev => {
+      const pid = prev.activePatientId
+      if (!pid || !prev.patients[pid]) return prev
+      return {
+        ...prev,
+        patients: {
+          ...prev.patients,
+          [pid]: {
+            ...prev.patients[pid],
+            clinicalNotes: (prev.patients[pid].clinicalNotes || []).map(n =>
+              n.id === id ? { ...n, ...updates } : n
+            ),
+          },
+        },
+      }
+    })
+  }, [])
+
+  const deleteClinicalNote = useCallback((id) => {
+    setState(prev => {
+      const pid = prev.activePatientId
+      if (!pid || !prev.patients[pid]) return prev
+      return {
+        ...prev,
+        patients: {
+          ...prev.patients,
+          [pid]: {
+            ...prev.patients[pid],
+            clinicalNotes: (prev.patients[pid].clinicalNotes || []).filter(n => n.id !== id),
+          },
+        },
+      }
+    })
+  }, [])
+
   // ─── Training Plan (scoped au patient actif) ─────────────────────────────
 
   const setTrainingPlan = useCallback((plan) => {
@@ -363,6 +426,7 @@ export function useStore() {
     sessions: activeData.sessions,
     wellnessLogs: activeData.wellnessLogs,
     trainingPlan: activeData.trainingPlan,
+    clinicalNotes: activeData.clinicalNotes || [],
 
     // Gestion multi-patients
     patientsList,
@@ -379,6 +443,9 @@ export function useStore() {
     deleteSession,
     addWellnessLog,
     updateWellnessLog,
+    addClinicalNote,
+    updateClinicalNote,
+    deleteClinicalNote,
     setTrainingPlan,
     clearTrainingPlan,
     markPlanSessionDone,
