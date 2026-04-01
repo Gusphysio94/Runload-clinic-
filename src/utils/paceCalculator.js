@@ -29,9 +29,8 @@ export function parseZoneRange(rangeStr) {
 export function calcPaceFromSpeed(speedKmh) {
   if (!speedKmh || speedKmh <= 0) return null
   const paceMinKm = 60 / speedKmh
-  const min = Math.floor(paceMinKm)
-  const sec = Math.round((paceMinKm - min) * 60)
-  return { min, sec: sec === 60 ? 0 : sec, ...(sec === 60 ? { min: min + 1 } : {}) }
+  const totalSec = Math.round(paceMinKm * 60)
+  return { min: Math.floor(totalSec / 60), sec: totalSec % 60 }
 }
 
 /**

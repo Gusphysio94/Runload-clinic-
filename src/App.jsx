@@ -25,6 +25,10 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [toast, setToast] = useState(null)
 
+  const handlePatientSwitch = useCallback(() => {
+    setEditingSession(null)
+  }, [])
+
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type, key: Date.now() })
   }, [])
@@ -60,7 +64,7 @@ function App() {
 
   const handleRepeatSession = (session) => {
     const today = new Date().toISOString().slice(0, 10)
-    const { id, ...rest } = session
+    const { id: _id, ...rest } = session
     // Use a unique key to force SessionForm remount with new data
     setEditingSession({ ...rest, id: undefined, date: today, _repeatKey: Date.now() })
     setCurrentPage('session')
@@ -75,6 +79,7 @@ function App() {
             patient={store.patient}
             sessions={store.sessions}
             trainingPlan={store.trainingPlan}
+            clinicalNotes={store.clinicalNotes}
             onNavigate={setCurrentPage}
           />
         )
@@ -83,6 +88,10 @@ function App() {
           <PatientProfile
             patient={store.patient}
             onSave={handleSavePatient}
+            clinicalNotes={store.clinicalNotes}
+            onAddNote={store.addClinicalNote}
+            onUpdateNote={store.updateClinicalNote}
+            onDeleteNote={store.deleteClinicalNote}
           />
         )
       case 'session':
@@ -217,6 +226,7 @@ function App() {
         store={store}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        onPatientSwitch={handlePatientSwitch}
       />
       <main className="flex-1 overflow-y-auto bg-grain min-w-0">
         <MobileHeader

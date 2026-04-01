@@ -40,7 +40,7 @@ const NAV_SECTIONS = [
 // Flat list for lookups (MobileHeader, etc.)
 const NAV_ITEMS = NAV_SECTIONS.flatMap(s => s.items)
 
-export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, onCloseMobile }) {
+export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, onCloseMobile, onPatientSwitch }) {
   const [showPatientMenu, setShowPatientMenu] = useState(false)
 
   // Fermer le menu mobile + patient menu quand on navigue
@@ -56,6 +56,7 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
   const handleSelectPatient = (id) => {
     store.setActivePatient(id)
     setShowPatientMenu(false)
+    onPatientSwitch?.()
   }
 
   const handleNewPatient = () => {

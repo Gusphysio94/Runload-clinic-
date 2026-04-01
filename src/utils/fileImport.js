@@ -366,8 +366,9 @@ function buildSummary({ distance, duration, elevation, avgHR, maxHR, avgCadence,
   items.push({ label: 'Durée', value: `${duration} min` })
   if (elevation) items.push({ label: 'D+', value: `${elevation} m` })
   if (avgPace) {
-    const paceMin = Math.floor(avgPace)
-    const paceSec = Math.round((avgPace - paceMin) * 60)
+    const totalPaceSec = Math.round(avgPace * 60)
+    const paceMin = Math.floor(totalPaceSec / 60)
+    const paceSec = totalPaceSec % 60
     items.push({ label: 'Allure moy.', value: `${paceMin}'${paceSec.toString().padStart(2, '0')} /km` })
   }
   if (avgHR) items.push({ label: 'FC moy.', value: `${avgHR} bpm` })

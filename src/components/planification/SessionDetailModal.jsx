@@ -158,7 +158,7 @@ export function SessionDetailModal({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span className="font-medium">
-                  Marquée le {new Date(completionData.completedAt).toLocaleDateString('fr-FR')}
+                  Marquée le {completionData?.completedAt ? new Date(completionData.completedAt).toLocaleDateString('fr-FR') : '—'}
                   {linkedSession && ` — liée à la séance du ${new Date(linkedSession.date).toLocaleDateString('fr-FR')}`}
                 </span>
               </div>

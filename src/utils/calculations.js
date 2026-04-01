@@ -106,7 +106,7 @@ export function calcWellnessScore(session) {
   const stress = 1 - ((session.lifeStress || 3) - 1) / 4       // 1-5 inversé
   const mood = ((session.mood || 3) - 1) / 4                   // 1-5
   const pain = session.hasPain
-    ? 1 - ((session.painIntensity || 0) - 1) / 9
+    ? 1 - ((session.painIntensity || 1) - 1) / 9
     : 1.0
 
   // Pondération : fatigue et sommeil pèsent plus

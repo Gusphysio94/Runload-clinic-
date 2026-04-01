@@ -56,7 +56,7 @@ export function WeeklyActionsPanel({ risk, acwr, volumeChange, wellness, weekSes
   )
 }
 
-function generateActions(risk, acwr, volumeChange, wellness, weekSessions, recommendations) {
+function generateActions(risk, acwr, volumeChange, wellness, weekSessions, _recommendations) {
   const actions = []
 
   // Risk-based actions

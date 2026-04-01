@@ -77,8 +77,9 @@ export function calculateCriticalSpeed(trials) {
   // Vitesses dérivées
   const csKmh = cs * 3.6 // m/s → km/h
   const csPaceMinKm = 1000 / cs / 60 // min/km
-  const paceMin = Math.floor(csPaceMinKm)
-  const paceSec = Math.round((csPaceMinKm - paceMin) * 60)
+  const totalPaceSec = Math.round(csPaceMinKm * 60)
+  const paceMin = Math.floor(totalPaceSec / 60)
+  const paceSec = totalPaceSec % 60
 
   return {
     cs,                         // m/s
@@ -362,12 +363,14 @@ function generatePredictions(trials, riegelK) {
 
   return distances.map(d => {
     const predictedTime = ref.time * Math.pow(d.meters / ref.distance, riegelK)
-    const hours = Math.floor(predictedTime / 3600)
-    const minutes = Math.floor((predictedTime % 3600) / 60)
-    const seconds = Math.round(predictedTime % 60)
+    const totalRoundedSec = Math.round(predictedTime)
+    const hours = Math.floor(totalRoundedSec / 3600)
+    const minutes = Math.floor((totalRoundedSec % 3600) / 60)
+    const seconds = totalRoundedSec % 60
     const pace = predictedTime / (d.meters / 1000) / 60 // min/km
-    const paceMin = Math.floor(pace)
-    const paceSec = Math.round((pace - paceMin) * 60)
+    const totalPSec = Math.round(pace * 60)
+    const paceMin = Math.floor(totalPSec / 60)
+    const paceSec = totalPSec % 60
 
     return {
       label: d.label,
