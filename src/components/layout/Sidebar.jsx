@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 const NAV_SECTIONS = [
   {
     label: 'Suivi',
@@ -32,7 +30,8 @@ const NAV_SECTIONS = [
   {
     label: 'Configuration',
     items: [
-      { id: 'patient', label: 'Profil patient', icon: UserIcon },
+      { id: 'patients', label: 'Mes patients', icon: PatientsIcon },
+      { id: 'patient', label: 'Éditer le profil', icon: UserIcon },
     ],
   },
 ]
@@ -40,38 +39,11 @@ const NAV_SECTIONS = [
 // Flat list for lookups (MobileHeader, etc.)
 const NAV_ITEMS = NAV_SECTIONS.flatMap(s => s.items)
 
-export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, onCloseMobile, onPatientSwitch }) {
-  const [showPatientMenu, setShowPatientMenu] = useState(false)
-
-  // Fermer le menu mobile + patient menu quand on navigue
+export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, onCloseMobile, onPatientSwitch: _onPatientSwitch }) {
+  // Fermer le menu mobile quand on navigue
   const handleNav = (id) => {
     onNavigate(id)
-    setShowPatientMenu(false)
     onCloseMobile?.()
-  }
-
-  // Fermer le menu patient quand on navigue (via handleNav)
-  // Le cleanup de showPatientMenu est géré dans handleNav et handleSelectPatient
-
-  const handleSelectPatient = (id) => {
-    store.setActivePatient(id)
-    setShowPatientMenu(false)
-    onPatientSwitch?.()
-  }
-
-  const handleNewPatient = () => {
-    store.addPatient({ firstName: '', lastName: '' })
-    setShowPatientMenu(false)
-    handleNav('patient')
-  }
-
-  const handleDeletePatient = (id, e) => {
-    e.stopPropagation()
-    const p = store.patientsList.find(pa => pa.id === id)
-    const name = p ? `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'ce patient' : 'ce patient'
-    if (confirm(`Supprimer ${name} et toutes ses données ?`)) {
-      store.deletePatient(id)
-    }
   }
 
   const sidebarContent = (
@@ -107,11 +79,13 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
         </button>
       </div>
 
-      {/* Patient selector */}
-      <div className="relative px-4 py-3 border-b border-white/[0.06]">
+      {/* Patient actif — lien vers le hub */}
+      <div className="px-4 py-3 border-b border-white/[0.06]">
         <button
-          onClick={() => setShowPatientMenu(!showPatientMenu)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.04] transition-colors"
+          onClick={() => handleNav('patients')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+            currentPage === 'patients' ? 'bg-primary-500/15' : 'hover:bg-white/[0.04]'
+          }`}
         >
           {patient ? (
             <>
@@ -123,7 +97,7 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
                   {patient.firstName} {patient.lastName}
                 </p>
                 <p className="text-[0.65rem] text-slate-500 mt-0.5 truncate">
-                  {patient.objective || 'Patient actif'}
+                  {store.patientsList.length} patient{store.patientsList.length > 1 ? 's' : ''} — Voir tous
                 </p>
               </div>
             </>
@@ -136,68 +110,14 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
               </div>
               <div className="min-w-0 flex-1 text-left">
                 <p className="text-sm text-slate-400 font-medium">Aucun patient</p>
-                <p className="text-[0.65rem] text-slate-600">Créer un patient</p>
+                <p className="text-[0.65rem] text-slate-600">Gérer les patients</p>
               </div>
             </>
           )}
-          <ChevronIcon className="w-4 h-4 text-slate-500 shrink-0" expanded={showPatientMenu} />
+          <svg className="w-4 h-4 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
         </button>
-
-        {/* Dropdown patient list */}
-        {showPatientMenu && (
-          <div className="absolute left-3 right-3 top-full mt-1 z-50 bg-[#1a1f35] border border-white/10 rounded-xl shadow-xl shadow-black/30 overflow-hidden">
-            {store.patientsList.length > 0 && (
-              <div className="max-h-48 overflow-y-auto py-1">
-                {store.patientsList.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleSelectPatient(p.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-white/[0.06] transition-colors ${
-                      p.id === store.activePatientId ? 'bg-primary-500/10' : ''
-                    }`}
-                  >
-                    <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[0.6rem] font-semibold text-slate-300 shrink-0">
-                      {(p.firstName?.[0] || '?').toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-200 truncate font-medium">
-                        {p.firstName || ''} {p.lastName || ''}
-                        {!p.firstName && !p.lastName && <span className="text-slate-500 italic">Nouveau patient</span>}
-                      </p>
-                    </div>
-                    {p.id === store.activePatientId && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary-400 shrink-0" />
-                    )}
-                    {store.patientsList.length > 1 && (
-                      <button
-                        onClick={(e) => handleDeletePatient(p.id, e)}
-                        className="p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors shrink-0"
-                        title="Supprimer"
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="border-t border-white/[0.06]">
-              <button
-                onClick={handleNewPatient}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-white/[0.06] transition-colors"
-              >
-                <div className="w-6 h-6 rounded-full bg-primary-500/20 flex items-center justify-center shrink-0">
-                  <svg className="w-3 h-3 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                </div>
-                <span className="text-xs text-primary-400 font-medium">Nouveau patient</span>
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Navigation */}
@@ -323,13 +243,10 @@ export function MobileHeader({ onOpenMenu, currentPage, patient }) {
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
-function ChevronIcon({ className, expanded }) {
+function PatientsIcon({ className }) {
   return (
-    <svg
-      className={`${className} transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
     </svg>
   )
 }

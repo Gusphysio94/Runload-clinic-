@@ -79,6 +79,21 @@ export function useStore() {
     return Object.values(state.patients).map(p => p.info).filter(Boolean)
   }, [state.patients])
 
+  const patientSummaries = useMemo(() => {
+    return Object.entries(state.patients).map(([_id, data]) => {
+      const sessions = data.sessions || []
+      const sorted = sessions.length > 0
+        ? [...sessions].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+        : []
+      return {
+        ...data.info,
+        sessionCount: sessions.length,
+        lastSessionDate: sorted[0]?.date || null,
+        noteCount: (data.clinicalNotes || []).length,
+      }
+    }).filter(p => p.id)
+  }, [state.patients])
+
   const setActivePatient = useCallback((patientId) => {
     setState(prev => ({ ...prev, activePatientId: patientId }))
   }, [])
@@ -430,6 +445,7 @@ export function useStore() {
 
     // Gestion multi-patients
     patientsList,
+    patientSummaries,
     activePatientId: state.activePatientId,
     setActivePatient,
     addPatient,

@@ -17,6 +17,7 @@ import { TrendsDashboard } from './components/trends/TrendsDashboard'
 import { VMACalculator } from './components/tools/VMACalculator'
 import { RacePredictor } from './components/tools/RacePredictor'
 import { PaceConverter } from './components/tools/PaceConverter'
+import { PatientHub } from './components/patient/PatientHub'
 
 function App() {
   const store = useStore()
@@ -73,7 +74,30 @@ function App() {
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'patients':
+        return (
+          <PatientHub
+            patients={store.patientSummaries}
+            activePatientId={store.activePatientId}
+            onSelect={(id) => { store.setActivePatient(id); setCurrentPage('dashboard') }}
+            onCreate={(firstName, lastName) => { store.addPatient({ firstName, lastName }); setCurrentPage('dashboard') }}
+            onDelete={(id) => store.deletePatient(id)}
+            onEdit={(id) => { store.setActivePatient(id); setCurrentPage('patient') }}
+          />
+        )
       case 'dashboard':
+        if (!store.patient && !store.patientsList.length) {
+          return (
+            <PatientHub
+              patients={store.patientSummaries}
+              activePatientId={store.activePatientId}
+              onSelect={(id) => { store.setActivePatient(id); setCurrentPage('dashboard') }}
+              onCreate={(firstName, lastName) => { store.addPatient({ firstName, lastName }); setCurrentPage('dashboard') }}
+              onDelete={(id) => store.deletePatient(id)}
+              onEdit={(id) => { store.setActivePatient(id); setCurrentPage('patient') }}
+            />
+          )
+        }
         return (
           <Dashboard
             patient={store.patient}

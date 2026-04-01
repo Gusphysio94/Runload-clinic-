@@ -95,28 +95,19 @@ export function Dashboard({ patient, sessions, trainingPlan, clinicalNotes, onNa
       <div className="space-y-6 animate-fade-in-up">
         <h2 className="text-2xl font-bold text-text-primary tracking-tight">Tableau de bord</h2>
         <Card>
-          <div className="text-center py-16">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center mb-5">
-              <svg className="w-8 h-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-text-primary mb-2 tracking-tight">Bienvenue sur RunLoad Clinic</h3>
-            <p className="text-text-secondary text-sm max-w-md mx-auto leading-relaxed mb-6">
-              Commencez par créer le profil de votre patient pour débuter le suivi de la charge d'entraînement.
+          <div className="text-center py-12">
+            <p className="text-text-secondary text-sm mb-4">
+              Sélectionnez un patient pour afficher le tableau de bord.
             </p>
             {onNavigate && (
               <button
-                onClick={() => onNavigate('patient')}
+                onClick={() => onNavigate('patients')}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-b from-primary-500 to-primary-600 text-white text-sm font-semibold rounded-xl
                   hover:from-primary-500 hover:to-primary-700 shadow-sm shadow-primary-600/25 hover:shadow-md
                   transition-all duration-200"
                 style={{ fontFamily: 'var(--font-heading)' }}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Créer un profil patient
+                Mes patients
               </button>
             )}
           </div>
