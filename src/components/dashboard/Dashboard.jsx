@@ -71,8 +71,24 @@ function getWellnessStatus(val) {
   return 'red'
 }
 
+function getProfileCompletion(patient) {
+  if (!patient) return { percent: 0, missing: [] }
+  const checks = [
+    { label: 'Prénom', filled: !!patient.firstName },
+    { label: 'Nom', filled: !!patient.lastName },
+    { label: 'Niveau', filled: !!patient.level },
+    { label: 'Objectif', filled: !!patient.objective },
+    { label: 'Volume hebdo', filled: !!patient.weeklyVolumeRef },
+    { label: 'Données physio', filled: !!(patient.fcMax || patient.vma || patient.criticalSpeed) },
+  ]
+  const filled = checks.filter(c => c.filled).length
+  const missing = checks.filter(c => !c.filled).map(c => c.label)
+  return { percent: Math.round((filled / checks.length) * 100), missing }
+}
+
 export function Dashboard({ patient, sessions, trainingPlan, clinicalNotes, onNavigate }) {
   const [showExport, setShowExport] = useState(false)
+  const [dismissedBanner, setDismissedBanner] = useState(false)
 
   if (!patient) {
     return (
@@ -186,6 +202,38 @@ export function Dashboard({ patient, sessions, trainingPlan, clinicalNotes, onNa
           <span className="hidden sm:inline">Exporter le bilan</span>
         </button>
       </div>
+
+      {/* Bandeau profil incomplet */}
+      {(() => {
+        const comp = getProfileCompletion(patient)
+        if (comp.percent >= 75 || dismissedBanner) return null
+        return (
+          <div className="flex items-center gap-3 px-4 py-3 bg-amber-50/60 border border-amber-200/50 rounded-xl">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-800">
+                Profil complété à {comp.percent}%
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5 truncate">
+                Manque : {comp.missing.join(', ')}
+              </p>
+            </div>
+            <button
+              onClick={() => onNavigate('patient')}
+              className="px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors shrink-0"
+            >
+              Compléter
+            </button>
+            <button
+              onClick={() => setDismissedBanner(true)}
+              className="text-amber-400 hover:text-amber-600 transition-colors shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Modal export */}
       {showExport && (
