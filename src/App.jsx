@@ -23,6 +23,7 @@ import { PatientHub } from './components/patient/PatientHub'
 import { LoginPage } from './components/auth/LoginPage'
 import { RegisterPage } from './components/auth/RegisterPage'
 import { AccountSettings } from './components/auth/AccountSettings'
+import { GaitAnalysis } from './components/tools/GaitAnalysis'
 
 function App() {
   const auth = useAuth()
@@ -277,6 +278,16 @@ function AuthenticatedApp({ user, auth, onSignOut }) {
       case 'return-to-run':
         return (
           <ReturnToRun patient={store.patient} />
+        )
+      case 'gait-analysis':
+        return (
+          <GaitAnalysis
+            patient={store.patient}
+            gaitAnalyses={store.gaitAnalyses}
+            onAdd={store.addGaitAnalysis}
+            onUpdate={store.updateGaitAnalysis}
+            onDelete={store.deleteGaitAnalysis}
+          />
         )
       case 'legal':
         return (

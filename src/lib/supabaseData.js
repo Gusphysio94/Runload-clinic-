@@ -163,19 +163,54 @@ const rowToWellness = (r) => ({
   createdAt: r.created_at,
 })
 
+const gaitToRow = (g, userId, patientId) => ({
+  id: g.id,
+  user_id: userId,
+  patient_id: patientId,
+  date: g.date || null,
+  view: g.view || 'sagittal',
+  speed: g.speed ? Number(g.speed) : null,
+  cadence: g.cadence ? Number(g.cadence) : null,
+  foot_strike: g.footStrike || '',
+  overstride: g.overstride || 0,
+  hip_adduction: g.hipAdduction || 0,
+  pelvic_drop: g.pelvicDrop || 0,
+  vertical_oscillation: g.verticalOscillation || 0,
+  notes: g.notes || '',
+  video_id: g.videoId || null,
+  created_at: g.createdAt || new Date().toISOString(),
+})
+
+const rowToGait = (r) => ({
+  id: r.id,
+  date: r.date,
+  view: r.view || 'sagittal',
+  speed: r.speed,
+  cadence: r.cadence,
+  footStrike: r.foot_strike || '',
+  overstride: r.overstride || 0,
+  hipAdduction: r.hip_adduction || 0,
+  pelvicDrop: r.pelvic_drop || 0,
+  verticalOscillation: r.vertical_oscillation || 0,
+  notes: r.notes || '',
+  videoId: r.video_id || null,
+  createdAt: r.created_at,
+})
+
 // ─── Fetch all data for a user ───────────────────────────────────────────────
 
 export async function fetchAllData(userId) {
   requireSupabase()
-  const [patientsRes, sessionsRes, notesRes, wellnessRes, plansRes] = await Promise.all([
+  const [patientsRes, sessionsRes, notesRes, wellnessRes, plansRes, gaitRes] = await Promise.all([
     supabase.from('patients').select('*').eq('user_id', userId),
     supabase.from('sessions').select('*').eq('user_id', userId),
     supabase.from('clinical_notes').select('*').eq('user_id', userId),
     supabase.from('wellness_logs').select('*').eq('user_id', userId),
     supabase.from('training_plans').select('*').eq('user_id', userId),
+    supabase.from('gait_analyses').select('*').eq('user_id', userId).then(r => r, () => ({ data: [], error: null })),
   ])
 
-  // Check for auth errors
+  // Check for auth errors (gaitRes may fail if table doesn't exist yet)
   for (const res of [patientsRes, sessionsRes, notesRes, wellnessRes, plansRes]) {
     if (res.error) throw new Error(res.error.message)
   }
@@ -190,6 +225,7 @@ export async function fetchAllData(userId) {
       wellnessLogs: [],
       trainingPlan: null,
       clinicalNotes: [],
+      gaitAnalyses: [],
     }
   }
 
@@ -214,6 +250,12 @@ export async function fetchAllData(userId) {
   for (const row of plansRes.data) {
     if (patients[row.patient_id]) {
       patients[row.patient_id].trainingPlan = row.plan_data
+    }
+  }
+
+  for (const row of (gaitRes.data || [])) {
+    if (patients[row.patient_id]) {
+      patients[row.patient_id].gaitAnalyses.push(rowToGait(row))
     }
   }
 
@@ -342,5 +384,34 @@ export async function deleteTrainingPlan(patientId) {
     .from('training_plans')
     .delete()
     .eq('patient_id', patientId)
+  if (error) throw error
+}
+
+// ─── Gait Analyses CRUD ─────────────────────────────────────────────────────
+
+export async function insertGaitAnalysis(userId, patientId, analysis) {
+  requireSupabase()
+  const { error } = await supabase
+    .from('gait_analyses')
+    .upsert(gaitToRow(analysis, userId, patientId))
+  if (error) throw error
+}
+
+export async function updateGaitAnalysisRow(analysisId, updates, userId, patientId) {
+  requireSupabase()
+  const row = gaitToRow({ id: analysisId, ...updates }, userId, patientId)
+  const { error } = await supabase
+    .from('gait_analyses')
+    .update(row)
+    .eq('id', analysisId)
+  if (error) throw error
+}
+
+export async function deleteGaitAnalysisRow(analysisId) {
+  requireSupabase()
+  const { error } = await supabase
+    .from('gait_analyses')
+    .delete()
+    .eq('id', analysisId)
   if (error) throw error
 }

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { fetchAllData, upsertPatient, deletePatientRow, insertSession, updateSessionRow, deleteSessionRow, insertNote, updateNoteRow, deleteNoteRow, insertWellnessLog, updateWellnessRow, upsertTrainingPlan, deleteTrainingPlan } from '../lib/supabaseData'
+import { fetchAllData, upsertPatient, deletePatientRow, insertSession, updateSessionRow, deleteSessionRow, insertNote, updateNoteRow, deleteNoteRow, insertWellnessLog, updateWellnessRow, upsertTrainingPlan, deleteTrainingPlan, insertGaitAnalysis, updateGaitAnalysisRow, deleteGaitAnalysisRow } from '../lib/supabaseData'
 import { needsMigration, migrateToCloud } from '../lib/migration'
 
 const STORAGE_KEY = 'runload-clinic'
@@ -140,7 +140,7 @@ export function useStore(user) {
 
   const activeData = useMemo(() => {
     if (!state.activePatientId || !state.patients[state.activePatientId]) {
-      return { info: null, sessions: [], wellnessLogs: [], trainingPlan: null, clinicalNotes: [] }
+      return { info: null, sessions: [], wellnessLogs: [], trainingPlan: null, clinicalNotes: [], gaitAnalyses: [] }
     }
     return state.patients[state.activePatientId]
   }, [state])
@@ -177,7 +177,7 @@ export function useStore(user) {
       ...prev,
       patients: {
         ...prev.patients,
-        [id]: { info, sessions: [], wellnessLogs: [], trainingPlan: null, clinicalNotes: [] },
+        [id]: { info, sessions: [], wellnessLogs: [], trainingPlan: null, clinicalNotes: [], gaitAnalyses: [] },
       },
       activePatientId: id,
     }))
@@ -591,6 +591,73 @@ export function useStore(user) {
     })
   }, [userId])
 
+  // ─── Analyses de foulée (scoped au patient actif) ──────────────────────
+
+  const addGaitAnalysis = useCallback((analysis) => {
+    const newAnalysis = {
+      ...analysis,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    }
+    setState(prev => {
+      const pid = prev.activePatientId
+      if (!pid || !prev.patients[pid]) return prev
+      if (userId) sync(insertGaitAnalysis(userId, pid, newAnalysis))
+      return {
+        ...prev,
+        patients: {
+          ...prev.patients,
+          [pid]: {
+            ...prev.patients[pid],
+            gaitAnalyses: [...(prev.patients[pid].gaitAnalyses || []), newAnalysis],
+          },
+        },
+      }
+    })
+    return newAnalysis
+  }, [userId])
+
+  const updateGaitAnalysis = useCallback((id, updates) => {
+    setState(prev => {
+      const pid = prev.activePatientId
+      if (!pid || !prev.patients[pid]) return prev
+      const existing = (prev.patients[pid].gaitAnalyses || []).find(a => a.id === id)
+      if (existing && userId) {
+        sync(updateGaitAnalysisRow(id, { ...existing, ...updates }, userId, pid))
+      }
+      return {
+        ...prev,
+        patients: {
+          ...prev.patients,
+          [pid]: {
+            ...prev.patients[pid],
+            gaitAnalyses: (prev.patients[pid].gaitAnalyses || []).map(a =>
+              a.id === id ? { ...a, ...updates } : a
+            ),
+          },
+        },
+      }
+    })
+  }, [userId])
+
+  const deleteGaitAnalysis = useCallback((id) => {
+    setState(prev => {
+      const pid = prev.activePatientId
+      if (!pid || !prev.patients[pid]) return prev
+      return {
+        ...prev,
+        patients: {
+          ...prev.patients,
+          [pid]: {
+            ...prev.patients[pid],
+            gaitAnalyses: (prev.patients[pid].gaitAnalyses || []).filter(a => a.id !== id),
+          },
+        },
+      }
+    })
+    if (userId) sync(deleteGaitAnalysisRow(id))
+  }, [userId])
+
   // ─── API publique ────────────────────────────────────────────────────────
 
   return {
@@ -600,6 +667,7 @@ export function useStore(user) {
     wellnessLogs: activeData.wellnessLogs,
     trainingPlan: activeData.trainingPlan,
     clinicalNotes: activeData.clinicalNotes || [],
+    gaitAnalyses: activeData.gaitAnalyses || [],
 
     // Gestion multi-patients
     patientsList,
@@ -626,6 +694,9 @@ export function useStore(user) {
     unmarkPlanSessionDone,
     updatePlanSession,
     deletePlanSession,
+    addGaitAnalysis,
+    updateGaitAnalysis,
+    deleteGaitAnalysis,
 
     // État de chargement et sync
     isLoaded,

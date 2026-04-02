@@ -131,6 +131,31 @@ create policy "Users manage own clinical_notes" on clinical_notes
   for all using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- ─── Gait Analyses ─────────────────────────────────────────────────────────
+
+create table gait_analyses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  patient_id uuid not null references patients(id) on delete cascade,
+  date date,
+  view text default 'sagittal',
+  speed numeric,
+  cadence integer,
+  foot_strike text default '',
+  overstride integer default 0,
+  hip_adduction integer default 0,
+  pelvic_drop integer default 0,
+  vertical_oscillation integer default 0,
+  notes text default '',
+  video_id text,
+  created_at timestamptz default now()
+);
+
+alter table gait_analyses enable row level security;
+create policy "Users manage own gait_analyses" on gait_analyses
+  for all using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 -- ─── Index utiles ────────────────────────────────────────────────────────────
 
 create index idx_patients_user on patients(user_id);
@@ -139,3 +164,5 @@ create index idx_sessions_user on sessions(user_id);
 create index idx_notes_patient on clinical_notes(patient_id);
 create index idx_wellness_patient on wellness_logs(patient_id);
 create index idx_plans_patient on training_plans(patient_id);
+create index idx_gait_patient on gait_analyses(patient_id);
+create index idx_gait_user on gait_analyses(user_id);
