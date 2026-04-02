@@ -120,6 +120,14 @@ export function WeekCalendar({ plan, store }) {
           allSessions={store.sessions}
           onMarkDone={(linkedSessionId) => store.markPlanSessionDone(selectedSession.id, linkedSessionId)}
           onUnmark={() => store.unmarkPlanSessionDone(selectedSession.id)}
+          onUpdateSession={(id, updates) => {
+            store.updatePlanSession(id, updates)
+            setSelectedSession(prev => prev ? { ...prev, ...updates } : null)
+          }}
+          onDeleteSession={(id) => {
+            store.deletePlanSession(id)
+            setSelectedSession(null)
+          }}
           onClose={() => setSelectedSession(null)}
         />
       )}

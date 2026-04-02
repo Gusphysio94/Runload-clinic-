@@ -478,6 +478,66 @@ export function useStore(user) {
     })
   }, [userId])
 
+  const updatePlanSession = useCallback((planSessionId, updates) => {
+    setState(prev => {
+      const pid = prev.activePatientId
+      if (!pid || !prev.patients[pid]?.trainingPlan) return prev
+      const plan = prev.patients[pid].trainingPlan
+      const updatedWeeks = plan.weeks.map(week => ({
+        ...week,
+        sessions: week.sessions.map(s =>
+          s.id === planSessionId ? { ...s, ...updates } : s
+        ),
+      }))
+      // Recalculate week totals
+      for (const week of updatedWeeks) {
+        week.totalVolume = week.sessions.reduce((sum, s) => sum + (s.estimatedDistance || 0), 0)
+        week.totalDuration = week.sessions.reduce((sum, s) => sum + (s.duration || 0), 0)
+      }
+      const updated = { ...plan, weeks: updatedWeeks }
+      if (userId) sync(upsertTrainingPlan(userId, pid, updated))
+      return {
+        ...prev,
+        patients: {
+          ...prev.patients,
+          [pid]: {
+            ...prev.patients[pid],
+            trainingPlan: updated,
+          },
+        },
+      }
+    })
+  }, [userId])
+
+  const deletePlanSession = useCallback((planSessionId) => {
+    setState(prev => {
+      const pid = prev.activePatientId
+      if (!pid || !prev.patients[pid]?.trainingPlan) return prev
+      const plan = prev.patients[pid].trainingPlan
+      const updatedWeeks = plan.weeks.map(week => ({
+        ...week,
+        sessions: week.sessions.filter(s => s.id !== planSessionId),
+      }))
+      for (const week of updatedWeeks) {
+        week.totalVolume = week.sessions.reduce((sum, s) => sum + (s.estimatedDistance || 0), 0)
+        week.totalDuration = week.sessions.reduce((sum, s) => sum + (s.duration || 0), 0)
+      }
+      const { [planSessionId]: _, ...restCompleted } = (plan.completedSessions || {})
+      const updated = { ...plan, weeks: updatedWeeks, completedSessions: restCompleted }
+      if (userId) sync(upsertTrainingPlan(userId, pid, updated))
+      return {
+        ...prev,
+        patients: {
+          ...prev.patients,
+          [pid]: {
+            ...prev.patients[pid],
+            trainingPlan: updated,
+          },
+        },
+      }
+    })
+  }, [userId])
+
   const unmarkPlanSessionDone = useCallback((planSessionId) => {
     setState(prev => {
       const pid = prev.activePatientId
@@ -532,6 +592,8 @@ export function useStore(user) {
     clearTrainingPlan,
     markPlanSessionDone,
     unmarkPlanSessionDone,
+    updatePlanSession,
+    deletePlanSession,
 
     // État de chargement
     isLoaded,

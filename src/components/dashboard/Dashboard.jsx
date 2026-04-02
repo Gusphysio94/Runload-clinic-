@@ -170,6 +170,9 @@ export function Dashboard({ patient, sessions, trainingPlan, clinicalNotes, onNa
   const recommendations = generateRecommendations(sessions, patient, now)
   const history = getWeeklyHistory(sessions, patient, 8)
 
+  // Wellness breakdown from this week's sessions
+  const wellnessBreakdown = getWellnessBreakdown(weekSessions)
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Header */}
@@ -354,6 +357,47 @@ export function Dashboard({ patient, sessions, trainingPlan, clinicalNotes, onNa
         />
       </div>
 
+      {/* Détail bien-être */}
+      {wellnessBreakdown && (
+        <Card title="Détail bien-être (7 derniers jours)">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <WellnessItem
+              label="Fatigue"
+              value={wellnessBreakdown.fatigue}
+              max={10}
+              inverted
+              detail="1 = reposé, 10 = épuisé"
+            />
+            <WellnessItem
+              label="Sommeil"
+              value={wellnessBreakdown.sleep}
+              max={5}
+              detail="1 = mauvais, 5 = excellent"
+            />
+            <WellnessItem
+              label="Stress"
+              value={wellnessBreakdown.stress}
+              max={5}
+              inverted
+              detail="1 = calme, 5 = très stressé"
+            />
+            <WellnessItem
+              label="Humeur"
+              value={wellnessBreakdown.mood}
+              max={5}
+              detail="1 = mauvaise, 5 = excellente"
+            />
+            <WellnessItem
+              label="Douleur"
+              value={wellnessBreakdown.pain}
+              max={10}
+              inverted
+              detail={wellnessBreakdown.painCount > 0 ? `${wellnessBreakdown.painCount} séance(s) avec douleur` : 'Aucune douleur'}
+            />
+          </div>
+        </Card>
+      )}
+
       {/* Projection prochaine séance */}
       {trainingPlan && (
         <RiskProjection
@@ -535,6 +579,40 @@ export function Dashboard({ patient, sessions, trainingPlan, clinicalNotes, onNa
           ))}
         </ul>
       </Card>
+    </div>
+  )
+}
+
+function getWellnessBreakdown(weekSessions) {
+  if (weekSessions.length === 0) return null
+  const n = weekSessions.length
+  const fatigue = Number((weekSessions.reduce((s, x) => s + (x.fatigue || 5), 0) / n).toFixed(1))
+  const sleep = Number((weekSessions.reduce((s, x) => s + (x.sleepQuality || 3), 0) / n).toFixed(1))
+  const stress = Number((weekSessions.reduce((s, x) => s + (x.lifeStress || 3), 0) / n).toFixed(1))
+  const mood = Number((weekSessions.reduce((s, x) => s + (x.mood || 3), 0) / n).toFixed(1))
+  const painSessions = weekSessions.filter(x => x.hasPain)
+  const pain = painSessions.length > 0
+    ? Number((painSessions.reduce((s, x) => s + (x.painIntensity || 0), 0) / painSessions.length).toFixed(1))
+    : 0
+  return { fatigue, sleep, stress, mood, pain, painCount: painSessions.length }
+}
+
+function WellnessItem({ label, value, max, inverted, detail }) {
+  // For inverted scales (fatigue, stress, pain): lower is better
+  const ratio = inverted ? (1 - value / max) : (value / max)
+  const color = ratio >= 0.7 ? 'text-green-600' : ratio >= 0.4 ? 'text-amber-600' : 'text-red-500'
+  const barColor = ratio >= 0.7 ? 'bg-green-500' : ratio >= 0.4 ? 'bg-amber-500' : 'bg-red-400'
+
+  return (
+    <div className="p-3 bg-surface-dark/30 rounded-xl">
+      <p className="text-[0.65rem] font-semibold text-text-muted uppercase tracking-wider">{label}</p>
+      <p className={`text-xl font-bold mt-1 ${color}`} style={{ fontFamily: 'var(--font-heading)' }}>
+        {value}<span className="text-xs font-normal text-text-muted">/{max}</span>
+      </p>
+      <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${ratio * 100}%` }} />
+      </div>
+      {detail && <p className="text-[0.55rem] text-text-muted mt-1.5">{detail}</p>}
     </div>
   )
 }

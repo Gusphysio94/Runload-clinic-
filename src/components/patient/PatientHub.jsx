@@ -123,24 +123,45 @@ export function PatientHub({
         </Card>
       )}
 
-      {/* État vide */}
+      {/* État vide — Onboarding guidé */}
       {patients.length === 0 && !showCreate && (
         <Card>
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-50 flex items-center justify-center">
-              <svg className="w-8 h-8 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-              </svg>
+          <div className="py-8">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-50 flex items-center justify-center">
+                <svg className="w-8 h-8 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-text-primary mb-1" style={{ fontFamily: 'var(--font-heading)' }}>
+                Bienvenue sur RunLoad Clinic
+              </h3>
+              <p className="text-sm text-text-secondary max-w-md mx-auto">
+                Démarrez en 3 étapes pour suivre la charge de vos patients coureurs.
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-text-primary mb-1" style={{ fontFamily: 'var(--font-heading)' }}>
-              Bienvenue sur RunLoad Clinic
-            </h3>
-            <p className="text-sm text-text-secondary mb-6 max-w-md mx-auto">
-              Créez votre premier patient pour commencer le suivi de charge.
-            </p>
-            <Button onClick={() => setShowCreate(true)}>
-              Créer un patient
-            </Button>
+
+            <div className="max-w-lg mx-auto space-y-3">
+              <OnboardingStep
+                step={1}
+                title="Créer votre premier patient"
+                detail="Prénom et nom suffisent. Vous compléterez le profil au fil du suivi."
+                action={() => setShowCreate(true)}
+                actionLabel="Créer un patient"
+              />
+              <OnboardingStep
+                step={2}
+                title="Enregistrer sa première séance"
+                detail="Distance, durée, RPE et bien-être pour calculer la charge initiale."
+                disabled
+              />
+              <OnboardingStep
+                step={3}
+                title="Analyser les signaux de risque"
+                detail="ACWR, monotonie et score de risque s'affinent après 2+ semaines de données."
+                disabled
+              />
+            </div>
           </div>
         </Card>
       )}
@@ -241,6 +262,43 @@ export function PatientHub({
             )
           })}
         </div>
+      )}
+    </div>
+  )
+}
+
+function OnboardingStep({ step, done, title, detail, action, actionLabel, disabled }) {
+  return (
+    <div className={`flex items-start gap-3 p-3.5 rounded-xl border ${
+      done ? 'bg-emerald-50/50 border-emerald-200/50' :
+      disabled ? 'bg-surface-dark/10 border-border/30 opacity-50' :
+      'bg-primary-50/30 border-primary-200/40'
+    }`}>
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold ${
+        done ? 'bg-emerald-500 text-white' :
+        disabled ? 'bg-slate-200 text-slate-400' :
+        'bg-primary-500 text-white'
+      }`} style={{ fontFamily: 'var(--font-heading)' }}>
+        {done ? (
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+        ) : step}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold ${done ? 'text-emerald-700' : disabled ? 'text-text-muted' : 'text-text-primary'}`}>
+          {title}
+        </p>
+        {detail && <p className="text-xs text-text-muted mt-0.5">{detail}</p>}
+      </div>
+      {action && actionLabel && (
+        <button
+          onClick={action}
+          className="text-xs font-semibold text-primary-500 hover:text-primary-600 px-3 py-1.5 rounded-lg
+            hover:bg-primary-50 transition-colors shrink-0"
+        >
+          {actionLabel}
+        </button>
       )}
     </div>
   )

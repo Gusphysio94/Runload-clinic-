@@ -22,6 +22,20 @@ export function ExportReport({ patient, sessions, trainingPlan, clinicalNotes, o
   const alerts = generateAlerts(sessions, patient, now)
   const recommendations = generateRecommendations(sessions, patient, now)
 
+  // Wellness breakdown
+  const wb = weekSessions.length > 0 ? (() => {
+    const n = weekSessions.length
+    const fatigue = (weekSessions.reduce((s, x) => s + (x.fatigue || 5), 0) / n).toFixed(1)
+    const sleep = (weekSessions.reduce((s, x) => s + (x.sleepQuality || 3), 0) / n).toFixed(1)
+    const stress = (weekSessions.reduce((s, x) => s + (x.lifeStress || 3), 0) / n).toFixed(1)
+    const mood = (weekSessions.reduce((s, x) => s + (x.mood || 3), 0) / n).toFixed(1)
+    const painSessions = weekSessions.filter(x => x.hasPain)
+    const pain = painSessions.length > 0
+      ? (painSessions.reduce((s, x) => s + (x.painIntensity || 0), 0) / painSessions.length).toFixed(1)
+      : '0'
+    return { fatigue, sleep, stress, mood, pain, painCount: painSessions.length }
+  })() : null
+
   const handlePrint = () => {
     const content = reportRef.current
     if (!content) return
@@ -219,6 +233,40 @@ export function ExportReport({ patient, sessions, trainingPlan, clinicalNotes, o
               </div>
             </div>
           </div>
+
+          {/* Détail bien-être */}
+          {wb && (
+            <div className="section">
+              <h2>Détail bien-être (7 derniers jours)</h2>
+              <div className="grid-5" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                <div className="metric">
+                  <div className="label">Fatigue</div>
+                  <div className="value">{wb.fatigue}<span className="unit">/10</span></div>
+                  <div className="detail">1 = reposé, 10 = épuisé</div>
+                </div>
+                <div className="metric">
+                  <div className="label">Sommeil</div>
+                  <div className="value">{wb.sleep}<span className="unit">/5</span></div>
+                  <div className="detail">1 = mauvais, 5 = excellent</div>
+                </div>
+                <div className="metric">
+                  <div className="label">Stress</div>
+                  <div className="value">{wb.stress}<span className="unit">/5</span></div>
+                  <div className="detail">1 = calme, 5 = stressé</div>
+                </div>
+                <div className="metric">
+                  <div className="label">Humeur</div>
+                  <div className="value">{wb.mood}<span className="unit">/5</span></div>
+                  <div className="detail">1 = mauvaise, 5 = excellente</div>
+                </div>
+                <div className="metric">
+                  <div className="label">Douleur</div>
+                  <div className="value">{wb.pain}<span className="unit">/10</span></div>
+                  <div className="detail">{wb.painCount} séance(s) avec douleur</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Alertes */}
           {alerts.length > 0 && (

@@ -5,8 +5,13 @@ import { getBestPaceDisplay, formatPace } from '../../utils/paceCalculator'
 export function SessionDetailModal({
   session, zonePaces, completionData, linkedSession,
   allSessions, onMarkDone, onUnmark, onClose,
+  onUpdateSession, onDeleteSession,
 }) {
   const [showLinkPicker, setShowLinkPicker] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editDuration, setEditDuration] = useState(session?.duration || 0)
+  const [editDistance, setEditDistance] = useState(session?.estimatedDistance || 0)
+  const [editRpe, setEditRpe] = useState(session?.rpeTarget || 5)
   if (!session) return null
 
   const color = PLAN_SESSION_COLORS[session.type] || '#6b7280'
@@ -57,10 +62,107 @@ export function SessionDetailModal({
           </button>
         </div>
 
-        {/* Description */}
-        <div className="px-6 py-4 border-b border-border">
-          <p className="text-sm text-text-secondary">{session.description}</p>
-        </div>
+        {/* Edit form or Description */}
+        {editing ? (
+          <div className="px-6 py-4 border-b border-border space-y-3">
+            <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Modifier la séance</h4>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[0.65rem] font-semibold text-text-secondary mb-1">Durée (min)</label>
+                <input
+                  type="number"
+                  value={editDuration}
+                  onChange={e => setEditDuration(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-surface border border-border/80 rounded-lg text-sm text-text-primary
+                    focus:outline-none focus:ring-2 focus:ring-primary-400 transition-all"
+                  min={5} step={5}
+                />
+              </div>
+              <div>
+                <label className="block text-[0.65rem] font-semibold text-text-secondary mb-1">Distance (km)</label>
+                <input
+                  type="number"
+                  value={editDistance}
+                  onChange={e => setEditDistance(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-surface border border-border/80 rounded-lg text-sm text-text-primary
+                    focus:outline-none focus:ring-2 focus:ring-primary-400 transition-all"
+                  min={0} step={0.5}
+                />
+              </div>
+              <div>
+                <label className="block text-[0.65rem] font-semibold text-text-secondary mb-1">RPE cible</label>
+                <input
+                  type="number"
+                  value={editRpe}
+                  onChange={e => setEditRpe(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-surface border border-border/80 rounded-lg text-sm text-text-primary
+                    focus:outline-none focus:ring-2 focus:ring-primary-400 transition-all"
+                  min={1} max={10} step={1}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (onUpdateSession) {
+                    onUpdateSession(session.id, {
+                      duration: editDuration,
+                      estimatedDistance: editDistance,
+                      rpeTarget: editRpe,
+                    })
+                  }
+                  setEditing(false)
+                }}
+                className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                Enregistrer
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="px-6 py-4 border-b border-border">
+            <p className="text-sm text-text-secondary">{session.description}</p>
+            {(onUpdateSession || onDeleteSession) && (
+              <div className="flex gap-2 mt-3">
+                {onUpdateSession && (
+                  <button
+                    onClick={() => {
+                      setEditDuration(session.duration || 0)
+                      setEditDistance(session.estimatedDistance || 0)
+                      setEditRpe(session.rpeTarget || 5)
+                      setEditing(true)
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary
+                      hover:text-primary-600 hover:bg-primary-50 rounded-lg border border-border/60 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                    </svg>
+                    Modifier
+                  </button>
+                )}
+                {onDeleteSession && (
+                  <button
+                    onClick={() => { onDeleteSession(session.id); onClose() }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-muted
+                      hover:text-red-600 hover:bg-red-50 rounded-lg border border-border/60 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                    Supprimer
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Comparaison prévu vs réalisé */}
         {isDone && linkedSession && (
