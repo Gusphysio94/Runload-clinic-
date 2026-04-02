@@ -1,5 +1,9 @@
 import { supabase } from './supabase'
 
+function requireSupabase() {
+  if (!supabase) throw new Error('Supabase not configured')
+}
+
 // ─── Mapping camelCase ↔ snake_case ──────────────────────────────────────────
 
 const patientToRow = (p, userId) => ({
@@ -162,6 +166,7 @@ const rowToWellness = (r) => ({
 // ─── Fetch all data for a user ───────────────────────────────────────────────
 
 export async function fetchAllData(userId) {
+  requireSupabase()
   const [patientsRes, sessionsRes, notesRes, wellnessRes, plansRes] = await Promise.all([
     supabase.from('patients').select('*').eq('user_id', userId),
     supabase.from('sessions').select('*').eq('user_id', userId),
@@ -222,6 +227,7 @@ export async function fetchAllData(userId) {
 // ─── Patient CRUD ────────────────────────────────────────────────────────────
 
 export async function upsertPatient(userId, patient) {
+  requireSupabase()
   const { error } = await supabase
     .from('patients')
     .upsert(patientToRow(patient, userId))
@@ -229,6 +235,7 @@ export async function upsertPatient(userId, patient) {
 }
 
 export async function deletePatientRow(patientId) {
+  requireSupabase()
   const { error } = await supabase
     .from('patients')
     .delete()
@@ -239,6 +246,7 @@ export async function deletePatientRow(patientId) {
 // ─── Session CRUD ────────────────────────────────────────────────────────────
 
 export async function insertSession(userId, patientId, session) {
+  requireSupabase()
   const { error } = await supabase
     .from('sessions')
     .upsert(sessionToRow(session, userId, patientId))
@@ -246,6 +254,7 @@ export async function insertSession(userId, patientId, session) {
 }
 
 export async function updateSessionRow(sessionId, updates, userId, patientId) {
+  requireSupabase()
   const row = sessionToRow({ id: sessionId, ...updates }, userId, patientId)
   const { error } = await supabase
     .from('sessions')
@@ -255,6 +264,7 @@ export async function updateSessionRow(sessionId, updates, userId, patientId) {
 }
 
 export async function deleteSessionRow(sessionId) {
+  requireSupabase()
   const { error } = await supabase
     .from('sessions')
     .delete()
@@ -265,6 +275,7 @@ export async function deleteSessionRow(sessionId) {
 // ─── Clinical Notes CRUD ─────────────────────────────────────────────────────
 
 export async function insertNote(userId, patientId, note) {
+  requireSupabase()
   const { error } = await supabase
     .from('clinical_notes')
     .upsert(noteToRow(note, userId, patientId))
@@ -272,6 +283,7 @@ export async function insertNote(userId, patientId, note) {
 }
 
 export async function updateNoteRow(noteId, updates, userId, patientId) {
+  requireSupabase()
   const row = noteToRow({ id: noteId, ...updates }, userId, patientId)
   const { error } = await supabase
     .from('clinical_notes')
@@ -281,6 +293,7 @@ export async function updateNoteRow(noteId, updates, userId, patientId) {
 }
 
 export async function deleteNoteRow(noteId) {
+  requireSupabase()
   const { error } = await supabase
     .from('clinical_notes')
     .delete()
@@ -291,6 +304,7 @@ export async function deleteNoteRow(noteId) {
 // ─── Wellness Logs CRUD ──────────────────────────────────────────────────────
 
 export async function insertWellnessLog(userId, patientId, log) {
+  requireSupabase()
   const { error } = await supabase
     .from('wellness_logs')
     .upsert(wellnessToRow(log, userId, patientId))
@@ -298,6 +312,7 @@ export async function insertWellnessLog(userId, patientId, log) {
 }
 
 export async function updateWellnessRow(logId, updates, userId, patientId) {
+  requireSupabase()
   const row = wellnessToRow({ id: logId, ...updates }, userId, patientId)
   const { error } = await supabase
     .from('wellness_logs')
@@ -309,6 +324,7 @@ export async function updateWellnessRow(logId, updates, userId, patientId) {
 // ─── Training Plan ───────────────────────────────────────────────────────────
 
 export async function upsertTrainingPlan(userId, patientId, planData) {
+  requireSupabase()
   const { error } = await supabase
     .from('training_plans')
     .upsert({
@@ -321,6 +337,7 @@ export async function upsertTrainingPlan(userId, patientId, planData) {
 }
 
 export async function deleteTrainingPlan(patientId) {
+  requireSupabase()
   const { error } = await supabase
     .from('training_plans')
     .delete()

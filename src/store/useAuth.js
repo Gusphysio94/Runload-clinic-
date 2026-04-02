@@ -15,10 +15,12 @@ function translateError(msg) {
 
 export function useAuth() {
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!!supabase) // false immediately if no supabase
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (!supabase) return
+
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null)
@@ -34,6 +36,7 @@ export function useAuth() {
   }, [])
 
   const signUp = useCallback(async (email, password, displayName) => {
+    if (!supabase) { setError('Service non configuré.'); return false }
     setError(null)
     const { error: err } = await supabase.auth.signUp({
       email,
@@ -50,6 +53,7 @@ export function useAuth() {
   }, [])
 
   const signIn = useCallback(async (email, password) => {
+    if (!supabase) { setError('Service non configuré.'); return false }
     setError(null)
     const { error: err } = await supabase.auth.signInWithPassword({
       email,
@@ -64,11 +68,12 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     setError(null)
-    await supabase.auth.signOut()
+    if (supabase) await supabase.auth.signOut()
     setUser(null)
   }, [])
 
   const resetPassword = useCallback(async (email) => {
+    if (!supabase) { setError('Service non configuré.'); return false }
     setError(null)
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}`,
