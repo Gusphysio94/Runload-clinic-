@@ -1,5 +1,6 @@
 import { useState, useCallback, Component } from 'react'
 import { useStore } from './store/useStore'
+import { useAuth } from './store/useAuth'
 import { parseStravaCallbackHash } from './utils/strava'
 import { Sidebar, MobileHeader } from './components/layout/Sidebar'
 import { Toast } from './components/ui/Toast'
@@ -19,9 +20,37 @@ import { VMACalculator } from './components/tools/VMACalculator'
 import { RacePredictor } from './components/tools/RacePredictor'
 import { PaceConverter } from './components/tools/PaceConverter'
 import { PatientHub } from './components/patient/PatientHub'
+import { LoginPage } from './components/auth/LoginPage'
+import { RegisterPage } from './components/auth/RegisterPage'
 
 function App() {
-  const store = useStore()
+  const auth = useAuth()
+  const [authPage, setAuthPage] = useState('login')
+
+  // Loading — checking session
+  if (auth.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-grain">
+        <div className="text-center">
+          <div className="w-10 h-10 border-3 border-primary-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-text-secondary">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Not authenticated
+  if (!auth.user) {
+    return authPage === 'register'
+      ? <RegisterPage auth={auth} onSwitch={() => { setAuthPage('login'); auth.setError(null) }} />
+      : <LoginPage auth={auth} onSwitch={() => { setAuthPage('register'); auth.setError(null) }} />
+  }
+
+  return <AuthenticatedApp user={auth.user} onSignOut={auth.signOut} />
+}
+
+function AuthenticatedApp({ user, onSignOut }) {
+  const store = useStore(user)
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [editingSession, setEditingSession] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -267,6 +296,8 @@ function App() {
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
         onPatientSwitch={handlePatientSwitch}
+        user={user}
+        onSignOut={onSignOut}
       />
       <main className="flex-1 overflow-y-auto bg-grain min-w-0">
         <MobileHeader

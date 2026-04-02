@@ -1,4 +1,6 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { fetchAllData, upsertPatient, deletePatientRow, insertSession, updateSessionRow, deleteSessionRow, insertNote, updateNoteRow, deleteNoteRow, insertWellnessLog, updateWellnessRow, upsertTrainingPlan, deleteTrainingPlan } from '../lib/supabaseData'
+import { needsMigration, migrateToCloud } from '../lib/migration'
 
 const STORAGE_KEY = 'runload-clinic'
 
@@ -18,10 +20,8 @@ function saveToStorage(data) {
 // ─── Migration depuis l'ancien format mono-patient ───────────────────────────
 
 function migrateFromLegacy(data) {
-  // Déjà au nouveau format
   if (data.patients && data.activePatientId !== undefined) return data
 
-  // Ancien format : { patient, sessions, wellnessLogs, trainingPlan }
   if (data.patient || data.sessions) {
     const patientId = crypto.randomUUID()
     const patients = {}
@@ -45,20 +45,60 @@ function migrateFromLegacy(data) {
   return DEFAULT_STATE
 }
 
-// ─── State par défaut ────────────────────────────────────────────────────────
-
 const DEFAULT_STATE = {
   patients: {},
   activePatientId: null,
 }
 
+// ─── Background sync helper ─────────────────────────────────────────────────
+
+function sync(promise) {
+  promise.catch(err => console.error('[Supabase sync]', err))
+}
+
 // ─── Hook principal ──────────────────────────────────────────────────────────
 
-export function useStore() {
+export function useStore(user) {
+  const userId = user?.id
   const [state, setState] = useState(() => {
     const raw = loadFromStorage()
     return raw ? migrateFromLegacy(raw) : DEFAULT_STATE
   })
+  const [isLoaded, setIsLoaded] = useState(false)
+  const hasFetched = useRef(false)
+
+  // ─── Fetch from Supabase on mount ─────────────────────────────────────
+
+  useEffect(() => {
+    if (!userId || hasFetched.current) return
+    hasFetched.current = true
+
+    const load = async () => {
+      try {
+        // Check if we need to migrate localStorage data first
+        if (needsMigration()) {
+          await migrateToCloud(userId)
+        }
+
+        const cloudData = await fetchAllData(userId)
+        if (cloudData && Object.keys(cloudData.patients).length > 0) {
+          setState(prev => ({
+            ...cloudData,
+            activePatientId: cloudData.activePatientId || prev.activePatientId,
+          }))
+        }
+      } catch (err) {
+        console.error('[Supabase fetch]', err)
+        // Falls back to localStorage data already in state
+      } finally {
+        setIsLoaded(true)
+      }
+    }
+
+    load()
+  }, [userId])
+
+  // ─── Persist to localStorage ──────────────────────────────────────────
 
   useEffect(() => {
     saveToStorage(state)
@@ -109,8 +149,9 @@ export function useStore() {
       },
       activePatientId: id,
     }))
+    if (userId) sync(upsertPatient(userId, info))
     return id
-  }, [])
+  }, [userId])
 
   const deletePatient = useCallback((patientId) => {
     setState(prev => {
@@ -124,33 +165,36 @@ export function useStore() {
           : prev.activePatientId,
       }
     })
-  }, [])
+    if (userId) sync(deletePatientRow(patientId))
+  }, [userId])
 
   // ─── Patient actif (API compatible avec l'ancien format) ─────────────────
 
   const setPatient = useCallback((patient) => {
     setState(prev => {
       if (prev.activePatientId && prev.patients[prev.activePatientId]) {
-        // Mettre à jour le patient actif
+        const updated = { ...patient, id: prev.activePatientId }
+        if (userId) sync(upsertPatient(userId, updated))
         return {
           ...prev,
           patients: {
             ...prev.patients,
             [prev.activePatientId]: {
               ...prev.patients[prev.activePatientId],
-              info: { ...patient, id: prev.activePatientId },
+              info: updated,
             },
           },
         }
       }
-      // Pas de patient actif → en créer un
       const id = patient.id || crypto.randomUUID()
+      const info = { ...patient, id }
+      if (userId) sync(upsertPatient(userId, info))
       return {
         ...prev,
         patients: {
           ...prev.patients,
           [id]: {
-            info: { ...patient, id },
+            info,
             sessions: [],
             wellnessLogs: [],
             trainingPlan: null,
@@ -160,24 +204,26 @@ export function useStore() {
         activePatientId: id,
       }
     })
-  }, [])
+  }, [userId])
 
   const updatePatient = useCallback((updates) => {
     setState(prev => {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]) return prev
+      const updated = { ...prev.patients[pid].info, ...updates }
+      if (userId) sync(upsertPatient(userId, updated))
       return {
         ...prev,
         patients: {
           ...prev.patients,
           [pid]: {
             ...prev.patients[pid],
-            info: { ...prev.patients[pid].info, ...updates },
+            info: updated,
           },
         },
       }
     })
-  }, [])
+  }, [userId])
 
   // ─── Sessions (scoped au patient actif) ──────────────────────────────────
 
@@ -190,6 +236,7 @@ export function useStore() {
     setState(prev => {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]) return prev
+      if (userId) sync(insertSession(userId, pid, newSession))
       return {
         ...prev,
         patients: {
@@ -202,12 +249,16 @@ export function useStore() {
       }
     })
     return newSession
-  }, [])
+  }, [userId])
 
   const updateSession = useCallback((id, updates) => {
     setState(prev => {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]) return prev
+      const existing = prev.patients[pid].sessions.find(s => s.id === id)
+      if (existing && userId) {
+        sync(updateSessionRow(id, { ...existing, ...updates }, userId, pid))
+      }
       return {
         ...prev,
         patients: {
@@ -221,7 +272,7 @@ export function useStore() {
         },
       }
     })
-  }, [])
+  }, [userId])
 
   const deleteSession = useCallback((id) => {
     setState(prev => {
@@ -238,7 +289,8 @@ export function useStore() {
         },
       }
     })
-  }, [])
+    if (userId) sync(deleteSessionRow(id))
+  }, [userId])
 
   // ─── Wellness Logs (scoped au patient actif) ─────────────────────────────
 
@@ -251,6 +303,7 @@ export function useStore() {
     setState(prev => {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]) return prev
+      if (userId) sync(insertWellnessLog(userId, pid, newLog))
       return {
         ...prev,
         patients: {
@@ -263,12 +316,16 @@ export function useStore() {
       }
     })
     return newLog
-  }, [])
+  }, [userId])
 
   const updateWellnessLog = useCallback((id, updates) => {
     setState(prev => {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]) return prev
+      const existing = prev.patients[pid].wellnessLogs.find(l => l.id === id)
+      if (existing && userId) {
+        sync(updateWellnessRow(id, { ...existing, ...updates }, userId, pid))
+      }
       return {
         ...prev,
         patients: {
@@ -282,7 +339,7 @@ export function useStore() {
         },
       }
     })
-  }, [])
+  }, [userId])
 
   // ─── Notes cliniques (scoped au patient actif) ──────────────────────────
 
@@ -295,6 +352,7 @@ export function useStore() {
     setState(prev => {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]) return prev
+      if (userId) sync(insertNote(userId, pid, newNote))
       return {
         ...prev,
         patients: {
@@ -307,12 +365,16 @@ export function useStore() {
       }
     })
     return newNote
-  }, [])
+  }, [userId])
 
   const updateClinicalNote = useCallback((id, updates) => {
     setState(prev => {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]) return prev
+      const existing = (prev.patients[pid].clinicalNotes || []).find(n => n.id === id)
+      if (existing && userId) {
+        sync(updateNoteRow(id, { ...existing, ...updates }, userId, pid))
+      }
       return {
         ...prev,
         patients: {
@@ -326,7 +388,7 @@ export function useStore() {
         },
       }
     })
-  }, [])
+  }, [userId])
 
   const deleteClinicalNote = useCallback((id) => {
     setState(prev => {
@@ -343,7 +405,8 @@ export function useStore() {
         },
       }
     })
-  }, [])
+    if (userId) sync(deleteNoteRow(id))
+  }, [userId])
 
   // ─── Training Plan (scoped au patient actif) ─────────────────────────────
 
@@ -351,6 +414,7 @@ export function useStore() {
     setState(prev => {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]) return prev
+      if (userId) sync(upsertTrainingPlan(userId, pid, plan))
       return {
         ...prev,
         patients: {
@@ -362,12 +426,13 @@ export function useStore() {
         },
       }
     })
-  }, [])
+  }, [userId])
 
   const clearTrainingPlan = useCallback(() => {
     setState(prev => {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]) return prev
+      if (userId) sync(deleteTrainingPlan(pid))
       return {
         ...prev,
         patients: {
@@ -379,7 +444,7 @@ export function useStore() {
         },
       }
     })
-  }, [])
+  }, [userId])
 
   // ─── Suivi complétion du plan ──────────────────────────────────────────
 
@@ -388,28 +453,30 @@ export function useStore() {
       const pid = prev.activePatientId
       if (!pid || !prev.patients[pid]?.trainingPlan) return prev
       const plan = prev.patients[pid].trainingPlan
+      const updated = {
+        ...plan,
+        completedSessions: {
+          ...(plan.completedSessions || {}),
+          [planSessionId]: {
+            done: true,
+            linkedSessionId,
+            completedAt: new Date().toISOString(),
+          },
+        },
+      }
+      if (userId) sync(upsertTrainingPlan(userId, pid, updated))
       return {
         ...prev,
         patients: {
           ...prev.patients,
           [pid]: {
             ...prev.patients[pid],
-            trainingPlan: {
-              ...plan,
-              completedSessions: {
-                ...(plan.completedSessions || {}),
-                [planSessionId]: {
-                  done: true,
-                  linkedSessionId,
-                  completedAt: new Date().toISOString(),
-                },
-              },
-            },
+            trainingPlan: updated,
           },
         },
       }
     })
-  }, [])
+  }, [userId])
 
   const unmarkPlanSessionDone = useCallback((planSessionId) => {
     setState(prev => {
@@ -417,21 +484,20 @@ export function useStore() {
       if (!pid || !prev.patients[pid]?.trainingPlan) return prev
       const plan = prev.patients[pid].trainingPlan
       const { [planSessionId]: _, ...rest } = (plan.completedSessions || {})
+      const updated = { ...plan, completedSessions: rest }
+      if (userId) sync(upsertTrainingPlan(userId, pid, updated))
       return {
         ...prev,
         patients: {
           ...prev.patients,
           [pid]: {
             ...prev.patients[pid],
-            trainingPlan: {
-              ...plan,
-              completedSessions: rest,
-            },
+            trainingPlan: updated,
           },
         },
       }
     })
-  }, [])
+  }, [userId])
 
   // ─── API publique ────────────────────────────────────────────────────────
 
@@ -466,5 +532,8 @@ export function useStore() {
     clearTrainingPlan,
     markPlanSessionDone,
     unmarkPlanSessionDone,
+
+    // État de chargement
+    isLoaded,
   }
 }

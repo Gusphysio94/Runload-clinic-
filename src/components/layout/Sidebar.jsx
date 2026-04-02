@@ -39,7 +39,7 @@ const NAV_SECTIONS = [
 // Flat list for lookups (MobileHeader, etc.)
 const NAV_ITEMS = NAV_SECTIONS.flatMap(s => s.items)
 
-export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, onCloseMobile, onPatientSwitch: _onPatientSwitch }) {
+export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, onCloseMobile, onPatientSwitch: _onPatientSwitch, user, onSignOut }) {
   // Fermer le menu mobile quand on navigue
   const handleNav = (id) => {
     onNavigate(id)
@@ -157,6 +157,21 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
 
       {/* Footer */}
       <div className="relative px-6 py-4 border-t border-white/[0.06] space-y-2">
+        {user && (
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="min-w-0">
+              <p className="text-[0.7rem] text-slate-300 font-medium truncate">
+                {user.user_metadata?.display_name || user.email}
+              </p>
+            </div>
+            <button
+              onClick={onSignOut}
+              className="text-[0.65rem] text-slate-500 hover:text-red-400 font-medium transition-colors shrink-0"
+            >
+              Déconnexion
+            </button>
+          </div>
+        )}
         <button
           onClick={() => handleNav('legal')}
           className={`flex items-center gap-2 text-[0.65rem] font-medium transition-colors ${
