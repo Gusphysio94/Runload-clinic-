@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AUTH_ERRORS = {
@@ -51,6 +51,8 @@ function recordFailedAttempt() {
 function clearFailedAttempts() {
   localStorage.removeItem(LOGIN_ATTEMPTS_KEY)
 }
+
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000 // 30 minutes
 
 function translateError(msg) {
   return AUTH_ERRORS[msg] || msg || 'Une erreur est survenue.'
@@ -147,6 +149,60 @@ export function useAuth() {
     return true
   }, [])
 
+  // ─── Auto-déconnexion après inactivité (30 min) ──────────────────────────
+  const inactivityTimer = useRef(null)
+
+  useEffect(() => {
+    if (!user) return
+
+    const resetTimer = () => {
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+      inactivityTimer.current = setTimeout(() => {
+        if (supabase) supabase.auth.signOut()
+        setUser(null)
+      }, INACTIVITY_TIMEOUT)
+    }
+
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart']
+    events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }))
+    resetTimer()
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetTimer))
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+    }
+  }, [user])
+
+  const deleteAccount = useCallback(async () => {
+    if (!supabase) { setError('Service non configuré.'); return false }
+    setError(null)
+    // Get current session token for server-side verification
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) { setError('Session expirée. Reconnectez-vous.'); return false }
+
+    const res = await fetch('/api/account/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ userId: user?.id }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error || 'Erreur lors de la suppression du compte.')
+      return false
+    }
+    // Clear local data
+    localStorage.removeItem('runload-clinic')
+    localStorage.removeItem('runload-clinic-migrated')
+    localStorage.removeItem(LOGIN_ATTEMPTS_KEY)
+    if (supabase) await supabase.auth.signOut()
+    setUser(null)
+    return true
+  }, [user])
+
   const updateProfile = useCallback(async (updates) => {
     if (!supabase) { setError('Service non configuré.'); return false }
     setError(null)
@@ -163,5 +219,5 @@ export function useAuth() {
     return true
   }, [])
 
-  return { user, loading, error, signUp, signIn, signOut, resetPassword, updatePassword, updateProfile, setError }
+  return { user, loading, error, signUp, signIn, signOut, resetPassword, updatePassword, updateProfile, deleteAccount, setError }
 }

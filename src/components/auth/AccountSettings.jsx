@@ -9,6 +9,9 @@ export function AccountSettings({ user, auth, onBack }) {
   const [profileSaved, setProfileSaved] = useState(false)
   const [passwordSaved, setPasswordSaved] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
@@ -17,6 +20,13 @@ export function AccountSettings({ user, auth, onBack }) {
     const ok = await auth.updateProfile({ display_name: displayName.trim() })
     if (ok) setProfileSaved(true)
     setSubmitting(false)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'SUPPRIMER') return
+    setDeleting(true)
+    await auth.deleteAccount()
+    setDeleting(false)
   }
 
   const handleUpdatePassword = async (e) => {
@@ -197,6 +207,73 @@ export function AccountSettings({ user, auth, onBack }) {
             </p>
           )}
         </div>
+      </Card>
+
+      {/* Auto-déconnexion info */}
+      <Card>
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+            <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-text-primary">Déconnexion automatique</p>
+            <p className="text-xs text-text-muted mt-0.5">
+              Pour protéger vos données, votre session expire automatiquement après 30 minutes d'inactivité.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Zone dangereuse */}
+      <Card>
+        <h3 className="text-sm font-bold text-red-600 mb-3" style={{ fontFamily: 'var(--font-heading)' }}>
+          Zone dangereuse
+        </h3>
+        <p className="text-sm text-text-secondary mb-4">
+          La suppression de votre compte est irréversible. Toutes vos données (patients, séances, notes, plans) seront définitivement effacées.
+        </p>
+        {!showDeleteConfirm ? (
+          <Button
+            variant="secondary"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="!border-red-200 !text-red-600 hover:!bg-red-50"
+          >
+            Supprimer mon compte
+          </Button>
+        ) : (
+          <div className="space-y-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <p className="text-sm font-medium text-red-700">
+              Tapez <span className="font-mono font-bold">SUPPRIMER</span> pour confirmer :
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              className="w-full max-w-xs px-3.5 py-2.5 bg-white border border-red-300 rounded-xl text-sm text-text-primary
+                focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-red-400 transition-all"
+              placeholder="SUPPRIMER"
+              autoFocus
+            />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== 'SUPPRIMER' || deleting}
+                className="px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl
+                  hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                {deleting ? 'Suppression...' : 'Confirmer la suppression'}
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText('') }}
+                className="px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   )
