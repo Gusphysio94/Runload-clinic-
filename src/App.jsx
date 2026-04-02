@@ -1,5 +1,6 @@
 import { useState, useCallback, Component } from 'react'
 import { useStore } from './store/useStore'
+import { parseStravaCallbackHash } from './utils/strava'
 import { Sidebar, MobileHeader } from './components/layout/Sidebar'
 import { Toast } from './components/ui/Toast'
 import { Dashboard } from './components/dashboard/Dashboard'
@@ -24,7 +25,21 @@ function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [editingSession, setEditingSession] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [toast, setToast] = useState(null)
+  const [toast, setToast] = useState(() => {
+    // Handle Strava OAuth callback on initial render
+    const result = parseStravaCallbackHash()
+    if (!result) return null
+    if (!result.error) {
+      return { message: 'Strava connecté avec succès', type: 'success', key: Date.now() }
+    }
+    const reasons = {
+      no_code: 'Autorisation Strava annulée',
+      scope_denied: 'Permissions Strava insuffisantes',
+      token_exchange: 'Erreur de connexion Strava',
+      server_error: 'Erreur serveur Strava',
+    }
+    return { message: reasons[result.reason] || 'Erreur Strava', type: 'error', key: Date.now() }
+  })
 
   const handlePatientSwitch = useCallback(() => {
     setEditingSession(null)
@@ -123,6 +138,7 @@ function App() {
           <SessionForm
             key={editingSession?.id || editingSession?._repeatKey || 'new'}
             patient={store.patient}
+            sessions={store.sessions}
             onSave={handleSaveSession}
             initialData={editingSession}
             onCancel={editingSession ? () => { setEditingSession(null); setCurrentPage('history') } : null}

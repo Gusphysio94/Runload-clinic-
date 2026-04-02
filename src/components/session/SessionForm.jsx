@@ -4,6 +4,9 @@ import { Button } from '../ui/Button'
 import { FormField, Input, Select, Slider, Checkbox } from '../ui/FormField'
 import { ZoneInput } from './ZoneInput'
 import { FileImportZone } from './FileImportZone'
+import { StravaConnect } from './StravaConnect'
+import { StravaActivityPicker } from './StravaActivityPicker'
+import { isStravaConnected } from '../../utils/strava'
 import {
   SESSION_TYPES,
   SURFACES,
@@ -39,9 +42,10 @@ const EMPTY_SESSION = {
   contextualNote: '',
 }
 
-export function SessionForm({ patient, onSave, initialData, onCancel }) {
+export function SessionForm({ patient, onSave, initialData, onCancel, sessions }) {
   const [form, setForm] = useState(initialData || EMPTY_SESSION)
   const [step, setStep] = useState(1) // 1: séance, 2: bien-être, 3: contexte, 4: résumé
+  const [stravaConnected, setStravaConnected] = useState(isStravaConnected())
 
   const update = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -135,9 +139,18 @@ export function SessionForm({ patient, onSave, initialData, onCancel }) {
       {/* Step 1: Données de séance */}
       {step === 1 && (
         <Card>
-          {/* Import fichier */}
-          <div className="mb-5">
+          {/* Import : fichier ou Strava */}
+          <div className="mb-5 space-y-3">
             <FileImportZone onImport={handleImport} patient={patient} />
+            <div className="relative flex items-center gap-3">
+              <div className="flex-1 h-px bg-border/50" />
+              <span className="text-[0.6rem] text-text-muted font-medium uppercase tracking-wider">ou</span>
+              <div className="flex-1 h-px bg-border/50" />
+            </div>
+            <StravaConnect onDisconnect={() => setStravaConnected(false)} />
+            {stravaConnected && (
+              <StravaActivityPicker onImport={handleImport} existingSessions={sessions} />
+            )}
           </div>
 
           {/* Import metadata banner */}
