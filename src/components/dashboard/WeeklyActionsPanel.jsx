@@ -44,7 +44,7 @@ export function WeeklyActionsPanel({ risk, acwr, volumeChange, wellness, weekSes
             {action.actionLabel && onNavigate && (
               <button
                 onClick={() => onNavigate(action.actionTarget)}
-                className="text-[0.65rem] font-semibold text-primary-500 hover:text-primary-600 whitespace-nowrap shrink-0 px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors"
+                className="text-[0.65rem] font-semibold text-primary-500 hover:text-primary-600 whitespace-nowrap shrink-0 px-3 py-2 rounded-lg hover:bg-primary-50 transition-colors min-h-[36px]"
               >
                 {action.actionLabel}
               </button>

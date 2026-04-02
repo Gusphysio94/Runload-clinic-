@@ -100,9 +100,9 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-text-muted hover:text-text-primary transition-colors rounded-lg"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -132,7 +132,7 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
               <select
                 value={filters.sessionType}
                 onChange={e => updateFilter('sessionType', e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-white text-xs text-text-primary
+                className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-xs text-text-primary min-h-[36px]
                   focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-all"
               >
                 <option value="">Tous</option>
@@ -144,7 +144,7 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
               <select
                 value={filters.surface}
                 onChange={e => updateFilter('surface', e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-white text-xs text-text-primary
+                className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-xs text-text-primary min-h-[36px]
                   focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-all"
               >
                 <option value="">Toutes</option>
@@ -156,7 +156,7 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
               <select
                 value={filters.period}
                 onChange={e => updateFilter('period', e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-white text-xs text-text-primary
+                className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-xs text-text-primary min-h-[36px]
                   focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-all"
               >
                 <option value="">Toutes</option>
@@ -174,7 +174,7 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
                   value={filters.rpeMin}
                   onChange={e => updateFilter('rpeMin', e.target.value)}
                   min={1} max={10} placeholder="1"
-                  className="w-full px-2 py-1.5 rounded-lg border border-border bg-white text-xs text-center text-text-primary
+                  className="w-full px-2 py-2 rounded-lg border border-border bg-white text-xs text-center text-text-primary min-h-[36px]
                     focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-all
                     [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
@@ -187,7 +187,7 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
                   value={filters.rpeMax}
                   onChange={e => updateFilter('rpeMax', e.target.value)}
                   min={1} max={10} placeholder="10"
-                  className="w-full px-2 py-1.5 rounded-lg border border-border bg-white text-xs text-center text-text-primary
+                  className="w-full px-2 py-2 rounded-lg border border-border bg-white text-xs text-center text-text-primary min-h-[36px]
                     focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-all
                     [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
@@ -196,7 +196,7 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="text-xs text-primary-500 hover:text-primary-600 font-medium pb-1.5"
+                className="text-xs text-primary-500 hover:text-primary-600 font-medium px-3 py-2 rounded-lg hover:bg-primary-50 transition-colors min-h-[36px]"
               >
                 Réinitialiser
               </button>

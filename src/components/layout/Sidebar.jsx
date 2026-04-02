@@ -72,7 +72,7 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
         {/* Close button on mobile */}
         <button
           onClick={onCloseMobile}
-          className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+          className="md:hidden p-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -136,7 +136,7 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
                   <button
                     key={item.id}
                     onClick={() => handleNav(item.id)}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[40px]
                       ${isActive
                         ? 'bg-primary-500/15 text-primary-400 shadow-sm shadow-primary-500/5'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
@@ -168,7 +168,7 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
             </div>
             <button
               onClick={onSignOut}
-              className="text-[0.65rem] text-slate-500 hover:text-red-400 font-medium transition-colors shrink-0"
+              className="text-[0.65rem] text-slate-500 hover:text-red-400 font-medium transition-colors shrink-0 px-2 py-1.5 rounded-lg min-h-[32px]"
             >
               Déconnexion
             </button>
@@ -176,7 +176,7 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
         )}
         <button
           onClick={() => handleNav('legal')}
-          className={`flex items-center gap-2 text-[0.65rem] font-medium transition-colors ${
+          className={`flex items-center gap-2 text-[0.65rem] font-medium transition-colors py-1.5 rounded-lg min-h-[32px] ${
             currentPage === 'legal' ? 'text-primary-400' : 'text-slate-500 hover:text-slate-300'
           }`}
         >
@@ -233,7 +233,7 @@ export function MobileHeader({ onOpenMenu, currentPage, patient }) {
     <div className="md:hidden sticky top-0 z-40 bg-surface-dark/95 backdrop-blur-md border-b border-white/[0.06] px-4 py-3 flex items-center gap-3">
       <button
         onClick={onOpenMenu}
-        className="p-2 -ml-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+        className="p-2.5 -ml-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
