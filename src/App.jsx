@@ -22,6 +22,7 @@ import { PaceConverter } from './components/tools/PaceConverter'
 import { PatientHub } from './components/patient/PatientHub'
 import { LoginPage } from './components/auth/LoginPage'
 import { RegisterPage } from './components/auth/RegisterPage'
+import { AccountSettings } from './components/auth/AccountSettings'
 
 function App() {
   const auth = useAuth()
@@ -46,10 +47,10 @@ function App() {
       : <LoginPage auth={auth} onSwitch={() => { setAuthPage('register'); auth.setError(null) }} />
   }
 
-  return <AuthenticatedApp user={auth.user} onSignOut={auth.signOut} />
+  return <AuthenticatedApp user={auth.user} auth={auth} onSignOut={auth.signOut} />
 }
 
-function AuthenticatedApp({ user, onSignOut }) {
+function AuthenticatedApp({ user, auth, onSignOut }) {
   const store = useStore(user)
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [editingSession, setEditingSession] = useState(null)
@@ -280,6 +281,14 @@ function AuthenticatedApp({ user, onSignOut }) {
       case 'legal':
         return (
           <LegalPage />
+        )
+      case 'account':
+        return (
+          <AccountSettings
+            user={user}
+            auth={auth}
+            onBack={() => setCurrentPage('dashboard')}
+          />
         )
       default:
         return null

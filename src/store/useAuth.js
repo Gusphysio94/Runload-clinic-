@@ -7,6 +7,49 @@ const AUTH_ERRORS = {
   'User already registered': 'Un compte existe déjà avec cet email.',
   'Password should be at least 6 characters': 'Le mot de passe doit contenir au moins 6 caractères.',
   'Unable to validate email address: invalid format': 'Format d\'email invalide.',
+  'For security purposes, you can only request this after': 'Trop de tentatives. Veuillez patienter avant de réessayer.',
+  'New password should be different from the old password': 'Le nouveau mot de passe doit être différent de l\'ancien.',
+}
+
+// ─── Rate limiting côté client ───────────────────────────────────────────────
+const LOGIN_ATTEMPTS_KEY = 'runload-login-attempts'
+const MAX_ATTEMPTS = 5
+const LOCKOUT_MS = 5 * 60 * 1000 // 5 minutes
+
+function checkRateLimit() {
+  try {
+    const raw = localStorage.getItem(LOGIN_ATTEMPTS_KEY)
+    if (!raw) return { allowed: true }
+    const data = JSON.parse(raw)
+    if (Date.now() - data.firstAttempt > LOCKOUT_MS) {
+      localStorage.removeItem(LOGIN_ATTEMPTS_KEY)
+      return { allowed: true }
+    }
+    if (data.count >= MAX_ATTEMPTS) {
+      const remaining = Math.ceil((LOCKOUT_MS - (Date.now() - data.firstAttempt)) / 60000)
+      return { allowed: false, message: `Trop de tentatives. Réessayez dans ${remaining} min.` }
+    }
+    return { allowed: true }
+  } catch {
+    return { allowed: true }
+  }
+}
+
+function recordFailedAttempt() {
+  try {
+    const raw = localStorage.getItem(LOGIN_ATTEMPTS_KEY)
+    const data = raw ? JSON.parse(raw) : { count: 0, firstAttempt: Date.now() }
+    if (Date.now() - data.firstAttempt > LOCKOUT_MS) {
+      localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify({ count: 1, firstAttempt: Date.now() }))
+    } else {
+      data.count++
+      localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(data))
+    }
+  } catch { /* ignore */ }
+}
+
+function clearFailedAttempts() {
+  localStorage.removeItem(LOGIN_ATTEMPTS_KEY)
 }
 
 function translateError(msg) {
@@ -54,15 +97,19 @@ export function useAuth() {
 
   const signIn = useCallback(async (email, password) => {
     if (!supabase) { setError('Service non configuré.'); return false }
+    const limit = checkRateLimit()
+    if (!limit.allowed) { setError(limit.message); return false }
     setError(null)
     const { error: err } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
     if (err) {
+      recordFailedAttempt()
       setError(translateError(err.message))
       return false
     }
+    clearFailedAttempts()
     return true
   }, [])
 
@@ -85,5 +132,36 @@ export function useAuth() {
     return true
   }, [])
 
-  return { user, loading, error, signUp, signIn, signOut, resetPassword, setError }
+  const updatePassword = useCallback(async (newPassword) => {
+    if (!supabase) { setError('Service non configuré.'); return false }
+    if (newPassword.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères.')
+      return false
+    }
+    setError(null)
+    const { error: err } = await supabase.auth.updateUser({ password: newPassword })
+    if (err) {
+      setError(translateError(err.message))
+      return false
+    }
+    return true
+  }, [])
+
+  const updateProfile = useCallback(async (updates) => {
+    if (!supabase) { setError('Service non configuré.'); return false }
+    setError(null)
+    const { error: err } = await supabase.auth.updateUser({
+      data: updates,
+    })
+    if (err) {
+      setError(translateError(err.message))
+      return false
+    }
+    // Refresh user data
+    const { data: { user: refreshed } } = await supabase.auth.getUser()
+    if (refreshed) setUser(refreshed)
+    return true
+  }, [])
+
+  return { user, loading, error, signUp, signIn, signOut, resetPassword, updatePassword, updateProfile, setError }
 }
