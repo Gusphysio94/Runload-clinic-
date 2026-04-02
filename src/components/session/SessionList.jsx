@@ -4,7 +4,8 @@ import { Button } from '../ui/Button'
 import { SESSION_TYPES, SURFACES } from '../../constants'
 
 export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
-  const [filters, setFilters] = useState({ sessionType: '', surface: '', rpeMin: '', rpeMax: '' })
+  const [filters, setFilters] = useState({ sessionType: '', surface: '', rpeMin: '', rpeMax: '', period: '' })
+  const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
 
@@ -54,31 +55,75 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
     if (filters.surface && s.surface !== filters.surface) return false
     if (filters.rpeMin && s.rpe < Number(filters.rpeMin)) return false
     if (filters.rpeMax && s.rpe > Number(filters.rpeMax)) return false
+    if (filters.period) {
+      const now = new Date()
+      const daysMap = { '7': 7, '30': 30, '90': 90, '365': 365 }
+      const days = daysMap[filters.period]
+      if (days) {
+        const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+        if (new Date(s.date) < cutoff) return false
+      }
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      const typeLabel = SESSION_TYPES.find(t => t.value === s.sessionType)?.label || ''
+      const surfaceLabel = SURFACES.find(sf => sf.value === s.surface)?.label || ''
+      const dateStr = formatDate(s.date)
+      const haystack = `${typeLabel} ${surfaceLabel} ${dateStr} ${s.contextualNote || ''} ${s.painLocation || ''}`.toLowerCase()
+      if (!haystack.includes(q)) return false
+    }
     return true
   })
 
-  const hasActiveFilters = filters.sessionType || filters.surface || filters.rpeMin || filters.rpeMax
+  const hasActiveFilters = filters.sessionType || filters.surface || filters.rpeMin || filters.rpeMax || filters.period
   const updateFilter = (key, val) => setFilters(prev => ({ ...prev, [key]: val }))
-  const resetFilters = () => setFilters({ sessionType: '', surface: '', rpeMin: '', rpeMax: '' })
+  const resetFilters = () => { setFilters({ sessionType: '', surface: '', rpeMin: '', rpeMax: '', period: '' }); setSearch('') }
 
   return (
     <div>
-      {/* Filtres */}
+      {/* Recherche + Filtres */}
       <div className="mb-4">
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors mb-2"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-          </svg>
-          Filtres
-          {hasActiveFilters && (
-            <span className="px-1.5 py-0.5 bg-primary-500 text-white text-[0.6rem] rounded-full font-bold">
-              {[filters.sessionType, filters.surface, filters.rpeMin, filters.rpeMax].filter(Boolean).length}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-3 mb-2">
+          {/* Barre de recherche */}
+          <div className="relative flex-1 max-w-sm">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher (type, surface, date...)"
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-border/60 bg-surface-card text-xs text-text-primary
+                placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 transition-all"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors px-3 py-2 rounded-xl border border-border/60 hover:border-border"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+            </svg>
+            Filtres
+            {hasActiveFilters && (
+              <span className="px-1.5 py-0.5 bg-primary-500 text-white text-[0.6rem] rounded-full font-bold">
+                {[filters.sessionType, filters.surface, filters.rpeMin, filters.rpeMax, filters.period].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+        </div>
 
         {showFilters && (
           <div className="flex flex-wrap items-end gap-3 p-3 bg-surface-card rounded-xl border border-border/60 mb-3">
@@ -104,6 +149,21 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
               >
                 <option value="">Toutes</option>
                 {SURFACES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+            <div className="min-w-[120px]">
+              <label className="block text-[0.65rem] font-medium text-text-muted uppercase tracking-wider mb-1">Période</label>
+              <select
+                value={filters.period}
+                onChange={e => updateFilter('period', e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-white text-xs text-text-primary
+                  focus:outline-none focus:ring-2 focus:ring-primary-500/30 transition-all"
+              >
+                <option value="">Toutes</option>
+                <option value="7">7 derniers jours</option>
+                <option value="30">30 derniers jours</option>
+                <option value="90">3 derniers mois</option>
+                <option value="365">12 derniers mois</option>
               </select>
             </div>
             <div className="flex items-end gap-1.5">
@@ -144,7 +204,7 @@ export function SessionList({ sessions, onEdit, onDelete, onRepeat }) {
           </div>
         )}
 
-        {hasActiveFilters && (
+        {(hasActiveFilters || search) && (
           <p className="text-xs text-text-muted mb-2">
             {filtered.length} séance{filtered.length !== 1 ? 's' : ''} sur {sorted.length}
           </p>

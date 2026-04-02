@@ -240,6 +240,33 @@ export function Dashboard({ patient, sessions, trainingPlan, clinicalNotes, onNa
         />
       )}
 
+      {/* Raccourci séance du jour */}
+      {onNavigate && (
+        <button
+          onClick={() => onNavigate('session')}
+          className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl
+            text-white shadow-md shadow-primary-600/20 hover:shadow-lg hover:shadow-primary-600/30
+            hover:from-primary-500 hover:to-primary-700 active:scale-[0.99] transition-all duration-200"
+        >
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </div>
+          <div className="text-left flex-1 min-w-0">
+            <p className="text-sm font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+              Enregistrer la séance du jour
+            </p>
+            <p className="text-xs text-white/70">
+              {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+          <svg className="w-5 h-5 text-white/60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+      )}
+
       {/* Actions de la semaine */}
       <WeeklyActionsPanel
         risk={risk}

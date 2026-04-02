@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Card } from '../ui/Card'
 import { PlanConfigPanel } from './PlanConfigPanel'
 import { PlanSummaryBar } from './PlanSummaryBar'
@@ -6,6 +7,7 @@ import { generateTrainingPlan } from '../../utils/planGenerator'
 
 export function TrainingPlan({ patient, store }) {
   const plan = store.trainingPlan
+  const [confirmReset, setConfirmReset] = useState(false)
 
   // Guard : pas de patient
   if (!patient) {
@@ -87,7 +89,7 @@ export function TrainingPlan({ patient, store }) {
             </div>
           )}
           <button
-            onClick={handleReset}
+            onClick={() => setConfirmReset(true)}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-secondary
               bg-surface-card border border-border rounded-xl hover:text-text-primary hover:border-border/80
               transition-all duration-200"
@@ -100,6 +102,39 @@ export function TrainingPlan({ patient, store }) {
           </button>
         </div>
       </div>
+
+      {/* Confirmation régénération */}
+      {confirmReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4" onClick={() => setConfirmReset(false)}>
+          <div className="bg-surface-card rounded-2xl border border-border shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
+              <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h3 className="text-center text-sm font-semibold text-text-primary mb-1">Régénérer le plan ?</h3>
+            <p className="text-center text-xs text-text-muted mb-5">
+              Le plan actuel et le suivi d'adhérence seront supprimés. Vous pourrez en générer un nouveau.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmReset(false)}
+                className="flex-1 px-3 py-2 text-sm font-medium text-text-secondary bg-surface-dark/30 rounded-xl
+                  hover:bg-surface-dark/50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => { handleReset(); setConfirmReset(false) }}
+                className="flex-1 px-3 py-2 text-sm font-medium text-white bg-amber-500 rounded-xl
+                  hover:bg-amber-600 transition-colors"
+              >
+                Régénérer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Résumé */}
       <PlanSummaryBar plan={plan} />

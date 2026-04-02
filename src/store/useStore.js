@@ -52,8 +52,19 @@ const DEFAULT_STATE = {
 
 // ─── Background sync helper ─────────────────────────────────────────────────
 
+let _syncListeners = []
+function notifySync(status) {
+  _syncListeners.forEach(fn => fn(status))
+}
+
 function sync(promise) {
-  promise.catch(err => console.error('[Supabase sync]', err))
+  notifySync('syncing')
+  promise
+    .then(() => notifySync('synced'))
+    .catch(err => {
+      console.error('[Supabase sync]', err)
+      notifySync('error')
+    })
 }
 
 // ─── Hook principal ──────────────────────────────────────────────────────────
@@ -65,7 +76,28 @@ export function useStore(user) {
     return raw ? migrateFromLegacy(raw) : DEFAULT_STATE
   })
   const [isLoaded, setIsLoaded] = useState(false)
+  const [syncStatus, setSyncStatus] = useState('idle') // idle | syncing | synced | error
   const hasFetched = useRef(false)
+  const syncTimerRef = useRef(null)
+
+  // Listen for sync events
+  useEffect(() => {
+    const handler = (status) => {
+      setSyncStatus(status)
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current)
+      if (status === 'synced') {
+        syncTimerRef.current = setTimeout(() => setSyncStatus('idle'), 3000)
+      }
+      if (status === 'error') {
+        syncTimerRef.current = setTimeout(() => setSyncStatus('idle'), 5000)
+      }
+    }
+    _syncListeners.push(handler)
+    return () => {
+      _syncListeners = _syncListeners.filter(fn => fn !== handler)
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current)
+    }
+  }, [])
 
   // ─── Fetch from Supabase on mount ─────────────────────────────────────
 
@@ -595,7 +627,8 @@ export function useStore(user) {
     updatePlanSession,
     deletePlanSession,
 
-    // État de chargement
+    // État de chargement et sync
     isLoaded,
+    syncStatus,
   }
 }

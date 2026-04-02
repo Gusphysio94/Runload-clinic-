@@ -160,7 +160,8 @@ export function Sidebar({ currentPage, onNavigate, patient, store, mobileOpen, o
       <div className="relative px-6 py-4 border-t border-white/[0.06] space-y-2">
         {user && (
           <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <SyncIndicator status={store.syncStatus} />
               <p className="text-[0.7rem] text-slate-300 font-medium truncate">
                 {user.user_metadata?.display_name || user.email}
               </p>
@@ -386,4 +387,28 @@ function ReturnRunIcon({ className }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
     </svg>
   )
+}
+
+function SyncIndicator({ status }) {
+  if (status === 'idle') {
+    return (
+      <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Données synchronisées" />
+    )
+  }
+  if (status === 'syncing') {
+    return (
+      <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" title="Synchronisation..." />
+    )
+  }
+  if (status === 'synced') {
+    return (
+      <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Synchronisé" />
+    )
+  }
+  if (status === 'error') {
+    return (
+      <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Erreur de synchronisation" />
+    )
+  }
+  return null
 }
