@@ -242,7 +242,15 @@ function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
   const handleVideoChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setVideoBlob(file)
+    // Read into memory immediately — iOS Safari invalidates the File
+    // reference after the camera picker closes
+    const reader = new FileReader()
+    reader.onload = () => {
+      const blob = new Blob([reader.result], { type: file.type || 'video/mp4' })
+      setVideoBlob(blob)
+    }
+    reader.onerror = () => setVideoBlob(file)
+    reader.readAsArrayBuffer(file)
   }
 
   return (
@@ -403,39 +411,68 @@ function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
 function VideoPlayer({ videoBlob, onRemove }) {
   const videoRef = useRef(null)
   const [rate, setRate] = useState(1)
+  const [fallback, setFallback] = useState(false)
   const blobUrlRef = useRef(null)
 
-  // Attach video source: use srcObject (Safari) or blob URL (others)
+  // Get or create a stable blob URL for fallback link
+  const getBlobUrl = useCallback(() => {
+    if (!blobUrlRef.current && videoBlob) {
+      blobUrlRef.current = URL.createObjectURL(videoBlob)
+    }
+    return blobUrlRef.current
+  }, [videoBlob])
+
+  // Try multiple strategies to attach video source
   useEffect(() => {
     const video = videoRef.current
     if (!video || !videoBlob) return
 
-    // Cleanup previous blob URL if any
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current)
-      blobUrlRef.current = null
-    }
+    const url = getBlobUrl()
 
-    // Safari supports File/Blob on srcObject — bypasses broken blob URL range requests
+    // On error → show fallback link to open in native player
+    const onError = () => setFallback(true)
+    video.addEventListener('error', onError)
+
+    // Strategy 1: srcObject (Safari-specific for Blob/File)
+    let usedSrcObject = false
     try {
       video.srcObject = videoBlob
+      usedSrcObject = true
     } catch {
-      // Other browsers: fall back to blob URL
-      const url = URL.createObjectURL(videoBlob)
-      blobUrlRef.current = url
-      video.src = url
+      // Not supported — try blob URL
     }
+
+    // Strategy 2: blob URL with #t=0.001 (forces first frame load on Safari)
+    if (!usedSrcObject) {
+      video.src = url + '#t=0.001'
+    }
+
     video.load()
 
+    // If after 2s the video has no duration, it failed silently → show fallback
+    const timer = setTimeout(() => {
+      if (!video.duration || video.duration === 0 || isNaN(video.duration)) {
+        setFallback(true)
+      }
+    }, 2000)
+
     return () => {
-      video.srcObject = null
-      video.src = ''
+      clearTimeout(timer)
+      video.removeEventListener('error', onError)
+      try { video.srcObject = null } catch { /* ignore */ }
+      video.removeAttribute('src')
+    }
+  }, [videoBlob, getBlobUrl])
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current)
         blobUrlRef.current = null
       }
     }
-  }, [videoBlob])
+  }, [])
 
   const changeRate = (newRate) => {
     if (!videoRef.current) return
@@ -449,61 +486,85 @@ function VideoPlayer({ videoBlob, onRemove }) {
     videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime + (direction * (1 / 30)))
   }
 
+  const openInNativePlayer = () => {
+    const url = getBlobUrl()
+    if (url) window.open(url, '_blank')
+  }
+
   return (
     <div className="space-y-3">
-      {/* Video with native controls — srcObject set via useEffect */}
+      {/* Video — try inline, fallback to native player link */}
       <div className="rounded-xl overflow-hidden bg-black">
         <video
           ref={videoRef}
-          className="w-full max-h-[50vh] object-contain"
+          className={`w-full max-h-[50vh] object-contain ${fallback ? 'hidden' : ''}`}
           controls
           playsInline
           preload="auto"
         />
+        {fallback && (
+          <div className="flex flex-col items-center justify-center py-10 px-4">
+            <svg className="w-10 h-10 text-white/40 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+            </svg>
+            <p className="text-white/60 text-xs text-center mb-3">
+              La lecture inline n'est pas disponible sur ce navigateur.
+            </p>
+            <button
+              onClick={openInNativePlayer}
+              className="px-5 py-2.5 bg-white text-black text-sm font-semibold rounded-xl
+                hover:bg-white/90 transition-colors min-h-[44px]"
+            >
+              Ouvrir la vidéo
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Extra controls: frame-by-frame + speed */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <button
-          onClick={() => stepFrame(-1)}
-          className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-dark/20 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
-          title="Image précédente"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 0 1 0-1.953l7.108-4.062A1.125 1.125 0 0 1 21 8.688v8.123ZM11.25 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 0 1 0-1.953l7.108-4.062a1.125 1.125 0 0 1 1.683.977v8.123Z" />
-          </svg>
-        </button>
-
-        <span className="text-[0.65rem] text-text-muted">Image</span>
-
-        <button
-          onClick={() => stepFrame(1)}
-          className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-dark/20 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
-          title="Image suivante"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 0 1 0 1.953l-7.108 4.062A1.125 1.125 0 0 1 3 16.81V8.688ZM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 0 1 0 1.953l-7.108 4.062a1.125 1.125 0 0 1-1.683-.977V8.688Z" />
-          </svg>
-        </button>
-
-        <div className="w-px h-6 bg-border mx-1" />
-
-        <span className="text-[0.65rem] text-text-muted">Vitesse</span>
-
-        {PLAYBACK_RATES.map(r => (
+      {/* Extra controls: frame-by-frame + speed (only if inline works) */}
+      {!fallback && (
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            key={r}
-            onClick={() => changeRate(r)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors min-h-[36px] ${
-              rate === r
-                ? 'bg-primary-500 text-white'
-                : 'bg-surface-dark/10 text-text-secondary hover:bg-surface-dark/20'
-            }`}
+            onClick={() => stepFrame(-1)}
+            className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-dark/20 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+            title="Image précédente"
           >
-            {r}x
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 0 1 0-1.953l7.108-4.062A1.125 1.125 0 0 1 21 8.688v8.123ZM11.25 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 0 1 0-1.953l7.108-4.062a1.125 1.125 0 0 1 1.683.977v8.123Z" />
+            </svg>
           </button>
-        ))}
-      </div>
+
+          <span className="text-[0.65rem] text-text-muted">Image</span>
+
+          <button
+            onClick={() => stepFrame(1)}
+            className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-dark/20 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+            title="Image suivante"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 0 1 0 1.953l-7.108 4.062A1.125 1.125 0 0 1 3 16.81V8.688ZM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 0 1 0 1.953l-7.108 4.062a1.125 1.125 0 0 1-1.683-.977V8.688Z" />
+            </svg>
+          </button>
+
+          <div className="w-px h-6 bg-border mx-1" />
+
+          <span className="text-[0.65rem] text-text-muted">Vitesse</span>
+
+          {PLAYBACK_RATES.map(r => (
+            <button
+              key={r}
+              onClick={() => changeRate(r)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors min-h-[36px] ${
+                rate === r
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-surface-dark/10 text-text-secondary hover:bg-surface-dark/20'
+              }`}
+            >
+              {r}x
+            </button>
+          ))}
+        </div>
+      )}
 
       {onRemove && (
         <button
