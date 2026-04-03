@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { saveVideo, loadVideo, deleteVideo } from '../../lib/videoStore'
@@ -49,14 +49,21 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
   const [mode, setMode] = useState('list') // 'list' | 'new' | 'view'
   const [viewingId, setViewingId] = useState(null)
   const [form, setForm] = useState(EMPTY_ANALYSIS)
-  const [videoBlob, setVideoBlob] = useState(null) // File or Blob for playback
+  const [videoBlob, setVideoBlob] = useState(null) // File or Blob for storage
+  const [videoUrl, setVideoUrl] = useState(null)   // blob URL for playback
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const analyses = [...(gaitAnalyses || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
+  const clearVideo = useCallback(() => {
+    if (videoUrl) URL.revokeObjectURL(videoUrl)
+    setVideoBlob(null)
+    setVideoUrl(null)
+  }, [videoUrl])
+
   const startNew = () => {
     setForm({ ...EMPTY_ANALYSIS, date: new Date().toISOString().split('T')[0] })
-    setVideoBlob(null)
+    clearVideo()
     setMode('new')
   }
 
@@ -72,17 +79,20 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
     }
     onAdd({ ...form, videoId })
     setMode('list')
-    setVideoBlob(null)
+    clearVideo()
   }
 
   const handleView = async (analysis) => {
     setViewingId(analysis.id)
     setMode('view')
-    setVideoBlob(null)
+    clearVideo()
     if (analysis.videoId) {
       try {
         const blob = await loadVideo(analysis.videoId)
-        if (blob) setVideoBlob(blob)
+        if (blob) {
+          setVideoBlob(blob)
+          setVideoUrl(URL.createObjectURL(blob))
+        }
       } catch {
         // Video not available
       }
@@ -101,7 +111,7 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
 
   const handleBack = () => {
     setMode('list')
-    setVideoBlob(null)
+    clearVideo()
   }
 
   if (!patient) {
@@ -145,7 +155,9 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
           form={form}
           setForm={setForm}
           videoBlob={videoBlob}
-          setVideoBlob={setVideoBlob}
+          videoUrl={videoUrl}
+          onVideoSelect={(file, url) => { setVideoBlob(file); setVideoUrl(url) }}
+          onVideoRemove={clearVideo}
           onSave={handleSave}
         />
       )}
@@ -157,7 +169,7 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
         return (
           <AnalysisDetail
             analysis={analysis}
-            videoBlob={videoBlob}
+            videoUrl={videoUrl}
             onDelete={() => setConfirmDelete(analysis)}
           />
         )
@@ -236,21 +248,16 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
 
 // ─── Analysis Form ───────────────────────────────────────────────────────────
 
-function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
+function AnalysisForm({ form, setForm, videoBlob, videoUrl, onVideoSelect, onVideoRemove, onSave }) {
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
 
   const handleVideoChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    // Read into memory immediately — iOS Safari invalidates the File
-    // reference after the camera picker closes
-    const reader = new FileReader()
-    reader.onload = () => {
-      const blob = new Blob([reader.result], { type: file.type || 'video/mp4' })
-      setVideoBlob(blob)
-    }
-    reader.onerror = () => setVideoBlob(file)
-    reader.readAsArrayBuffer(file)
+    // Create blob URL immediately in the same event handler tick —
+    // iOS Safari may invalidate File references asynchronously
+    const url = URL.createObjectURL(file)
+    onVideoSelect(file, url)
   }
 
   return (
@@ -298,8 +305,8 @@ function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
           </div>
         ) : (
           <VideoPlayer
-            videoBlob={videoBlob}
-            onRemove={() => setVideoBlob(null)}
+            videoUrl={videoUrl}
+            onRemove={onVideoRemove}
           />
         )}
       </Card>
@@ -408,71 +415,11 @@ function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
 
 // ─── Video Player with speed controls ────────────────────────────────────────
 
-function VideoPlayer({ videoBlob, onRemove }) {
+function VideoPlayer({ videoUrl, onRemove }) {
   const videoRef = useRef(null)
   const [rate, setRate] = useState(1)
-  const [fallback, setFallback] = useState(false)
-  const blobUrlRef = useRef(null)
-
-  // Get or create a stable blob URL for fallback link
-  const getBlobUrl = useCallback(() => {
-    if (!blobUrlRef.current && videoBlob) {
-      blobUrlRef.current = URL.createObjectURL(videoBlob)
-    }
-    return blobUrlRef.current
-  }, [videoBlob])
-
-  // Try multiple strategies to attach video source
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video || !videoBlob) return
-
-    const url = getBlobUrl()
-
-    // On error → show fallback link to open in native player
-    const onError = () => setFallback(true)
-    video.addEventListener('error', onError)
-
-    // Strategy 1: srcObject (Safari-specific for Blob/File)
-    let usedSrcObject = false
-    try {
-      video.srcObject = videoBlob
-      usedSrcObject = true
-    } catch {
-      // Not supported — try blob URL
-    }
-
-    // Strategy 2: blob URL with #t=0.001 (forces first frame load on Safari)
-    if (!usedSrcObject) {
-      video.src = url + '#t=0.001'
-    }
-
-    video.load()
-
-    // If after 2s the video has no duration, it failed silently → show fallback
-    const timer = setTimeout(() => {
-      if (!video.duration || video.duration === 0 || isNaN(video.duration)) {
-        setFallback(true)
-      }
-    }, 2000)
-
-    return () => {
-      clearTimeout(timer)
-      video.removeEventListener('error', onError)
-      try { video.srcObject = null } catch { /* ignore */ }
-      video.removeAttribute('src')
-    }
-  }, [videoBlob, getBlobUrl])
-
-  // Cleanup blob URL on unmount
-  useEffect(() => {
-    return () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current)
-        blobUrlRef.current = null
-      }
-    }
-  }, [])
+  const [canPlay, setCanPlay] = useState(false)
+  const [error, setError] = useState(false)
 
   const changeRate = (newRate) => {
     if (!videoRef.current) return
@@ -486,43 +433,44 @@ function VideoPlayer({ videoBlob, onRemove }) {
     videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime + (direction * (1 / 30)))
   }
 
-  const openInNativePlayer = () => {
-    const url = getBlobUrl()
-    if (url) window.open(url, '_blank')
-  }
+  if (!videoUrl) return null
 
   return (
     <div className="space-y-3">
-      {/* Video — try inline, fallback to native player link */}
       <div className="rounded-xl overflow-hidden bg-black">
+        {/* Always render the video tag with the URL directly in JSX */}
         <video
           ref={videoRef}
-          className={`w-full max-h-[50vh] object-contain ${fallback ? 'hidden' : ''}`}
+          src={videoUrl}
+          className={`w-full max-h-[50vh] object-contain ${error ? 'hidden' : ''}`}
           controls
           playsInline
           preload="auto"
+          onCanPlay={() => setCanPlay(true)}
+          onError={() => setError(true)}
         />
-        {fallback && (
+
+        {/* Fallback: direct <a> link — Safari handles blob URLs natively */}
+        {error && (
           <div className="flex flex-col items-center justify-center py-10 px-4">
             <svg className="w-10 h-10 text-white/40 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
             </svg>
-            <p className="text-white/60 text-xs text-center mb-3">
-              La lecture inline n'est pas disponible sur ce navigateur.
-            </p>
-            <button
-              onClick={openInNativePlayer}
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="px-5 py-2.5 bg-white text-black text-sm font-semibold rounded-xl
-                hover:bg-white/90 transition-colors min-h-[44px]"
+                hover:bg-white/90 transition-colors min-h-[44px] inline-flex items-center"
             >
               Ouvrir la vidéo
-            </button>
+            </a>
           </div>
         )}
       </div>
 
-      {/* Extra controls: frame-by-frame + speed (only if inline works) */}
-      {!fallback && (
+      {/* Extra controls: frame-by-frame + speed */}
+      {canPlay && (
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => stepFrame(-1)}
@@ -781,7 +729,7 @@ function AnalysisCard({ analysis, onClick, onDelete }) {
 
 // ─── Analysis Detail View ────────────────────────────────────────────────────
 
-function AnalysisDetail({ analysis, videoBlob, onDelete }) {
+function AnalysisDetail({ analysis, videoUrl, onDelete }) {
   const a = analysis
   const dateLabel = a.date
     ? new Date(a.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -791,9 +739,9 @@ function AnalysisDetail({ analysis, videoBlob, onDelete }) {
   return (
     <div className="space-y-5">
       {/* Video player if available */}
-      {videoBlob && (
+      {videoUrl && (
         <Card title="Vidéo">
-          <VideoPlayer videoBlob={videoBlob} />
+          <VideoPlayer videoUrl={videoUrl} />
         </Card>
       )}
 
