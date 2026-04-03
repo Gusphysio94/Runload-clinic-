@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { saveVideo, loadVideo, deleteVideo } from '../../lib/videoStore'
@@ -49,49 +49,40 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
   const [mode, setMode] = useState('list') // 'list' | 'new' | 'view'
   const [viewingId, setViewingId] = useState(null)
   const [form, setForm] = useState(EMPTY_ANALYSIS)
-  const [videoFile, setVideoFile] = useState(null) // File object
-  const [videoUrl, setVideoUrl] = useState(null) // Object URL for playback
+  const [videoBlob, setVideoBlob] = useState(null) // File or Blob for playback
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const analyses = [...(gaitAnalyses || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
   const startNew = () => {
     setForm({ ...EMPTY_ANALYSIS, date: new Date().toISOString().split('T')[0] })
-    setVideoFile(null)
-    setVideoUrl(null)
+    setVideoBlob(null)
     setMode('new')
   }
 
   const handleSave = async () => {
     let videoId = form.videoId
-    if (videoFile) {
+    if (videoBlob) {
       videoId = crypto.randomUUID()
       try {
-        await saveVideo(videoId, videoFile)
+        await saveVideo(videoId, videoBlob)
       } catch {
-        // IndexedDB not available — continue without video persistence
         videoId = null
       }
     }
     onAdd({ ...form, videoId })
     setMode('list')
-    setVideoUrl(null)
-    setVideoFile(null)
+    setVideoBlob(null)
   }
 
   const handleView = async (analysis) => {
     setViewingId(analysis.id)
     setMode('view')
-    setVideoUrl(null)
-    // Try to load video from IndexedDB
+    setVideoBlob(null)
     if (analysis.videoId) {
       try {
         const blob = await loadVideo(analysis.videoId)
-        if (blob) {
-          const reader = new FileReader()
-          reader.onload = () => setVideoUrl(reader.result)
-          reader.readAsDataURL(blob)
-        }
+        if (blob) setVideoBlob(blob)
       } catch {
         // Video not available
       }
@@ -110,7 +101,7 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
 
   const handleBack = () => {
     setMode('list')
-    setVideoUrl(null)
+    setVideoBlob(null)
   }
 
   if (!patient) {
@@ -153,10 +144,8 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
         <AnalysisForm
           form={form}
           setForm={setForm}
-          videoFile={videoFile}
-          setVideoFile={setVideoFile}
-          videoUrl={videoUrl}
-          setVideoUrl={setVideoUrl}
+          videoBlob={videoBlob}
+          setVideoBlob={setVideoBlob}
           onSave={handleSave}
         />
       )}
@@ -168,7 +157,7 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
         return (
           <AnalysisDetail
             analysis={analysis}
-            videoUrl={videoUrl}
+            videoBlob={videoBlob}
             onDelete={() => setConfirmDelete(analysis)}
           />
         )
@@ -247,24 +236,20 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
 
 // ─── Analysis Form ───────────────────────────────────────────────────────────
 
-function AnalysisForm({ form, setForm, videoFile: _videoFile, setVideoFile, videoUrl, setVideoUrl, onSave }) {
+function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
 
   const handleVideoChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setVideoFile(file)
-    // Use FileReader for iOS Safari compatibility (createObjectURL often fails for camera videos)
-    const reader = new FileReader()
-    reader.onload = () => setVideoUrl(reader.result)
-    reader.readAsDataURL(file)
+    setVideoBlob(file)
   }
 
   return (
     <div className="space-y-5">
       {/* Video capture */}
       <Card title="Vidéo">
-        {!videoUrl ? (
+        {!videoBlob ? (
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row gap-3">
               <label className="flex-1 cursor-pointer">
@@ -305,11 +290,8 @@ function AnalysisForm({ form, setForm, videoFile: _videoFile, setVideoFile, vide
           </div>
         ) : (
           <VideoPlayer
-            videoUrl={videoUrl}
-            onRemove={() => {
-              setVideoUrl(null)
-              setVideoFile(null)
-            }}
+            videoBlob={videoBlob}
+            onRemove={() => setVideoBlob(null)}
           />
         )}
       </Card>
@@ -418,12 +400,36 @@ function AnalysisForm({ form, setForm, videoFile: _videoFile, setVideoFile, vide
 
 // ─── Video Player with speed controls ────────────────────────────────────────
 
-function VideoPlayer({ videoUrl, onRemove }) {
+function VideoPlayer({ videoBlob, onRemove }) {
   const videoRef = useRef(null)
   const [playing, setPlaying] = useState(false)
   const [rate, setRate] = useState(1)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [ready, setReady] = useState(false)
+  const urlRef = useRef(null)
+
+  // Create object URL from blob and attach to video element directly
+  useEffect(() => {
+    if (!videoBlob || !videoRef.current) return
+
+    // Revoke previous URL
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+
+    const url = URL.createObjectURL(videoBlob)
+    urlRef.current = url
+
+    const video = videoRef.current
+    video.src = url
+    video.load()
+
+    return () => {
+      if (urlRef.current) {
+        URL.revokeObjectURL(urlRef.current)
+        urlRef.current = null
+      }
+    }
+  }, [videoBlob])
 
   const togglePlay = () => {
     if (!videoRef.current) return
@@ -453,8 +459,11 @@ function VideoPlayer({ videoUrl, onRemove }) {
     if (videoRef.current) setCurrentTime(videoRef.current.currentTime)
   }
 
-  const handleLoadedMetadata = () => {
-    if (videoRef.current) setDuration(videoRef.current.duration)
+  const handleLoadedData = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration)
+      setReady(true)
+    }
   }
 
   const handleSeek = (e) => {
@@ -474,11 +483,15 @@ function VideoPlayer({ videoUrl, onRemove }) {
     <div className="space-y-3">
       {/* Video */}
       <div className="relative rounded-xl overflow-hidden bg-black">
+        {!ready && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-white/60 text-sm">Chargement de la vidéo...</p>
+          </div>
+        )}
         <video
           ref={videoRef}
-          src={videoUrl}
           onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
+          onLoadedData={handleLoadedData}
           onEnded={() => setPlaying(false)}
           className="w-full max-h-[50vh] object-contain"
           playsInline
@@ -778,7 +791,7 @@ function AnalysisCard({ analysis, onClick, onDelete }) {
 
 // ─── Analysis Detail View ────────────────────────────────────────────────────
 
-function AnalysisDetail({ analysis, videoUrl, onDelete }) {
+function AnalysisDetail({ analysis, videoBlob, onDelete }) {
   const a = analysis
   const dateLabel = a.date
     ? new Date(a.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -788,9 +801,9 @@ function AnalysisDetail({ analysis, videoUrl, onDelete }) {
   return (
     <div className="space-y-5">
       {/* Video player if available */}
-      {videoUrl && (
+      {videoBlob && (
         <Card title="Vidéo">
-          <VideoPlayer videoUrl={videoUrl} />
+          <VideoPlayer videoBlob={videoBlob} />
         </Card>
       )}
 
