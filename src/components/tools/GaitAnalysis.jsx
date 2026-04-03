@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { saveVideo, loadVideo, deleteVideo } from '../../lib/videoStore'
@@ -403,34 +403,19 @@ function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
 function VideoPlayer({ videoBlob, onRemove }) {
   const videoRef = useRef(null)
   const [rate, setRate] = useState(1)
-  const urlRef = useRef(null)
 
-  // Create object URL from blob and attach to video element
-  useEffect(() => {
-    if (!videoBlob) return
-
-    // Revoke previous
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current)
-
-    const url = URL.createObjectURL(videoBlob)
-    urlRef.current = url
-
-    // Set src on next tick to ensure DOM is ready
-    const timer = setTimeout(() => {
-      if (videoRef.current) {
-        videoRef.current.src = url
-        videoRef.current.load()
-      }
-    }, 50)
-
-    return () => {
-      clearTimeout(timer)
-      if (urlRef.current) {
-        URL.revokeObjectURL(urlRef.current)
-        urlRef.current = null
-      }
-    }
+  // Create/revoke object URL when blob changes
+  const objectUrl = useMemo(() => {
+    if (!videoBlob) return null
+    return URL.createObjectURL(videoBlob)
   }, [videoBlob])
+
+  // Revoke URL on change or unmount
+  useEffect(() => {
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [objectUrl])
 
   const changeRate = (newRate) => {
     if (!videoRef.current) return
@@ -448,14 +433,17 @@ function VideoPlayer({ videoBlob, onRemove }) {
     <div className="space-y-3">
       {/* Video with native controls — required for iOS Safari */}
       <div className="rounded-xl overflow-hidden bg-black">
-        <video
-          ref={videoRef}
-          className="w-full max-h-[50vh] object-contain"
-          controls
-          playsInline
-          webkit-playsinline=""
-          preload="metadata"
-        />
+        {objectUrl && (
+          <video
+            ref={videoRef}
+            src={objectUrl}
+            className="w-full max-h-[50vh] object-contain"
+            controls
+            playsInline
+            webkit-playsinline=""
+            preload="metadata"
+          />
+        )}
       </div>
 
       {/* Extra controls: frame-by-frame + speed */}
