@@ -402,44 +402,35 @@ function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
 
 function VideoPlayer({ videoBlob, onRemove }) {
   const videoRef = useRef(null)
-  const [playing, setPlaying] = useState(false)
   const [rate, setRate] = useState(1)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [ready, setReady] = useState(false)
   const urlRef = useRef(null)
 
-  // Create object URL from blob and attach to video element directly
+  // Create object URL from blob and attach to video element
   useEffect(() => {
-    if (!videoBlob || !videoRef.current) return
+    if (!videoBlob) return
 
-    // Revoke previous URL
+    // Revoke previous
     if (urlRef.current) URL.revokeObjectURL(urlRef.current)
 
     const url = URL.createObjectURL(videoBlob)
     urlRef.current = url
 
-    const video = videoRef.current
-    video.src = url
-    video.load()
+    // Set src on next tick to ensure DOM is ready
+    const timer = setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.src = url
+        videoRef.current.load()
+      }
+    }, 50)
 
     return () => {
+      clearTimeout(timer)
       if (urlRef.current) {
         URL.revokeObjectURL(urlRef.current)
         urlRef.current = null
       }
     }
   }, [videoBlob])
-
-  const togglePlay = () => {
-    if (!videoRef.current) return
-    if (playing) {
-      videoRef.current.pause()
-    } else {
-      videoRef.current.play().catch(() => { /* autoplay blocked */ })
-    }
-    setPlaying(!playing)
-  }
 
   const changeRate = (newRate) => {
     if (!videoRef.current) return
@@ -450,70 +441,25 @@ function VideoPlayer({ videoBlob, onRemove }) {
   const stepFrame = (direction) => {
     if (!videoRef.current) return
     videoRef.current.pause()
-    setPlaying(false)
-    // Approximate 30fps
     videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime + (direction * (1 / 30)))
-  }
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current) setCurrentTime(videoRef.current.currentTime)
-  }
-
-  const handleLoadedData = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration)
-      setReady(true)
-    }
-  }
-
-  const handleSeek = (e) => {
-    if (!videoRef.current) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-    videoRef.current.currentTime = ratio * duration
-  }
-
-  const formatTime = (t) => {
-    const m = Math.floor(t / 60)
-    const s = Math.floor(t % 60)
-    return `${m}:${s.toString().padStart(2, '0')}`
   }
 
   return (
     <div className="space-y-3">
-      {/* Video */}
-      <div className="relative rounded-xl overflow-hidden bg-black">
-        {!ready && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-white/60 text-sm">Chargement de la vidéo...</p>
-          </div>
-        )}
+      {/* Video with native controls — required for iOS Safari */}
+      <div className="rounded-xl overflow-hidden bg-black">
         <video
           ref={videoRef}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedData={handleLoadedData}
-          onEnded={() => setPlaying(false)}
           className="w-full max-h-[50vh] object-contain"
+          controls
           playsInline
           webkit-playsinline=""
-          preload="auto"
+          preload="metadata"
         />
       </div>
 
-      {/* Progress bar */}
-      <div
-        className="h-2 bg-slate-200 rounded-full cursor-pointer overflow-hidden"
-        onClick={handleSeek}
-      >
-        <div
-          className="h-full bg-primary-500 rounded-full transition-all duration-100"
-          style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
-        />
-      </div>
-
-      {/* Controls */}
+      {/* Extra controls: frame-by-frame + speed */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Frame back */}
         <button
           onClick={() => stepFrame(-1)}
           className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-dark/20 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
@@ -524,23 +470,8 @@ function VideoPlayer({ videoBlob, onRemove }) {
           </svg>
         </button>
 
-        {/* Play/Pause */}
-        <button
-          onClick={togglePlay}
-          className="p-2.5 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-        >
-          {playing ? (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 0 1 0 1.971l-11.54 6.347a1.125 1.125 0 0 1-1.667-.985V5.653Z" />
-            </svg>
-          )}
-        </button>
+        <span className="text-[0.65rem] text-text-muted">Image</span>
 
-        {/* Frame forward */}
         <button
           onClick={() => stepFrame(1)}
           className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-dark/20 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
@@ -551,10 +482,10 @@ function VideoPlayer({ videoBlob, onRemove }) {
           </svg>
         </button>
 
-        {/* Separator */}
         <div className="w-px h-6 bg-border mx-1" />
 
-        {/* Speed buttons */}
+        <span className="text-[0.65rem] text-text-muted">Vitesse</span>
+
         {PLAYBACK_RATES.map(r => (
           <button
             key={r}
@@ -568,18 +499,12 @@ function VideoPlayer({ videoBlob, onRemove }) {
             {r}x
           </button>
         ))}
-
-        {/* Time display */}
-        <span className="text-xs text-text-muted ml-auto tabular-nums">
-          {formatTime(currentTime)} / {formatTime(duration)}
-        </span>
       </div>
 
-      {/* Remove video */}
       {onRemove && (
         <button
           onClick={onRemove}
-          className="text-xs text-text-muted hover:text-red-500 transition-colors py-1"
+          className="text-xs text-text-muted hover:text-red-500 transition-colors py-2 min-h-[36px]"
         >
           Supprimer la vidéo
         </button>
