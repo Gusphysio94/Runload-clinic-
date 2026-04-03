@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { saveVideo, loadVideo, deleteVideo } from '../../lib/videoStore'
@@ -82,20 +82,19 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
   const handleView = async (analysis) => {
     setViewingId(analysis.id)
     setMode('view')
+    setVideoUrl(null)
     // Try to load video from IndexedDB
     if (analysis.videoId) {
       try {
         const blob = await loadVideo(analysis.videoId)
         if (blob) {
-          setVideoUrl(URL.createObjectURL(blob))
-        } else {
-          setVideoUrl(null)
+          const reader = new FileReader()
+          reader.onload = () => setVideoUrl(reader.result)
+          reader.readAsDataURL(blob)
         }
       } catch {
-        setVideoUrl(null)
+        // Video not available
       }
-    } else {
-      setVideoUrl(null)
     }
   }
 
@@ -111,18 +110,8 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
 
   const handleBack = () => {
     setMode('list')
-    if (videoUrl) {
-      URL.revokeObjectURL(videoUrl)
-      setVideoUrl(null)
-    }
+    setVideoUrl(null)
   }
-
-  // Cleanup object URL on unmount
-  useEffect(() => {
-    return () => {
-      if (videoUrl) URL.revokeObjectURL(videoUrl)
-    }
-  }, [videoUrl])
 
   if (!patient) {
     return (
@@ -264,9 +253,11 @@ function AnalysisForm({ form, setForm, videoFile: _videoFile, setVideoFile, vide
   const handleVideoChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (videoUrl) URL.revokeObjectURL(videoUrl)
     setVideoFile(file)
-    setVideoUrl(URL.createObjectURL(file))
+    // Use FileReader for iOS Safari compatibility (createObjectURL often fails for camera videos)
+    const reader = new FileReader()
+    reader.onload = () => setVideoUrl(reader.result)
+    reader.readAsDataURL(file)
   }
 
   return (
@@ -316,7 +307,6 @@ function AnalysisForm({ form, setForm, videoFile: _videoFile, setVideoFile, vide
           <VideoPlayer
             videoUrl={videoUrl}
             onRemove={() => {
-              URL.revokeObjectURL(videoUrl)
               setVideoUrl(null)
               setVideoFile(null)
             }}
@@ -435,14 +425,6 @@ function VideoPlayer({ videoUrl, onRemove }) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
 
-  // Force load on iOS Safari when videoUrl changes
-  useEffect(() => {
-    if (videoRef.current && videoUrl) {
-      videoRef.current.src = videoUrl
-      videoRef.current.load()
-    }
-  }, [videoUrl])
-
   const togglePlay = () => {
     if (!videoRef.current) return
     if (playing) {
@@ -494,6 +476,7 @@ function VideoPlayer({ videoUrl, onRemove }) {
       <div className="relative rounded-xl overflow-hidden bg-black">
         <video
           ref={videoRef}
+          src={videoUrl}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={() => setPlaying(false)}
@@ -501,7 +484,6 @@ function VideoPlayer({ videoUrl, onRemove }) {
           playsInline
           webkit-playsinline=""
           preload="auto"
-          muted
         />
       </div>
 
