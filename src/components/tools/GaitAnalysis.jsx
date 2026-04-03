@@ -239,19 +239,22 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
 function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
 
-  const handleVideoChange = async (e) => {
+  const handleVideoChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    // Read file data immediately — iOS Safari may invalidate the File reference
-    // after the camera picker closes, causing black screen on playback
-    try {
-      const arrayBuffer = await file.arrayBuffer()
-      const blob = new Blob([arrayBuffer], { type: file.type || 'video/mp4' })
+    // Read file data into memory immediately via FileReader —
+    // iOS Safari invalidates the File reference after the camera picker closes.
+    // FileReader is more reliable than file.arrayBuffer() on older iOS versions.
+    const reader = new FileReader()
+    reader.onload = () => {
+      const blob = new Blob([reader.result], { type: file.type || 'video/mp4' })
       setVideoBlob(blob)
-    } catch {
-      // Fallback: use original file if arrayBuffer fails
+    }
+    reader.onerror = () => {
+      // Fallback: use original file
       setVideoBlob(file)
     }
+    reader.readAsArrayBuffer(file)
   }
 
   return (
@@ -451,14 +454,16 @@ function VideoPlayer({ videoBlob, onRemove }) {
       <div className="rounded-xl overflow-hidden bg-black">
         {objectUrl && (
           <video
+            key={objectUrl}
             ref={videoRef}
             className="w-full max-h-[50vh] object-contain"
             controls
             playsInline
-            webkit-playsinline=""
-            preload="metadata"
+            preload="auto"
           >
             <source src={objectUrl} type={mimeType} />
+            {/* Fallback without type for iOS compatibility */}
+            <source src={objectUrl} />
           </video>
         )}
       </div>
