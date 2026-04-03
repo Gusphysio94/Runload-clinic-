@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { saveVideo, loadVideo, deleteVideo } from '../../lib/videoStore'
@@ -242,19 +242,7 @@ function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
   const handleVideoChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    // Read file data into memory immediately via FileReader —
-    // iOS Safari invalidates the File reference after the camera picker closes.
-    // FileReader is more reliable than file.arrayBuffer() on older iOS versions.
-    const reader = new FileReader()
-    reader.onload = () => {
-      const blob = new Blob([reader.result], { type: file.type || 'video/mp4' })
-      setVideoBlob(blob)
-    }
-    reader.onerror = () => {
-      // Fallback: use original file
-      setVideoBlob(file)
-    }
-    reader.readAsArrayBuffer(file)
+    setVideoBlob(file)
   }
 
   return (
@@ -415,26 +403,39 @@ function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
 function VideoPlayer({ videoBlob, onRemove }) {
   const videoRef = useRef(null)
   const [rate, setRate] = useState(1)
-  const mimeType = videoBlob?.type || 'video/mp4'
+  const blobUrlRef = useRef(null)
 
-  const objectUrl = useMemo(() => {
-    if (!videoBlob) return null
-    return URL.createObjectURL(videoBlob)
-  }, [videoBlob])
-
-  // Revoke URL on change or unmount
+  // Attach video source: use srcObject (Safari) or blob URL (others)
   useEffect(() => {
+    const video = videoRef.current
+    if (!video || !videoBlob) return
+
+    // Cleanup previous blob URL if any
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current)
+      blobUrlRef.current = null
+    }
+
+    // Safari supports File/Blob on srcObject — bypasses broken blob URL range requests
+    try {
+      video.srcObject = videoBlob
+    } catch {
+      // Other browsers: fall back to blob URL
+      const url = URL.createObjectURL(videoBlob)
+      blobUrlRef.current = url
+      video.src = url
+    }
+    video.load()
+
     return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      video.srcObject = null
+      video.src = ''
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current)
+        blobUrlRef.current = null
+      }
     }
-  }, [objectUrl])
-
-  // Force video.load() after mount — required for iOS Safari
-  useEffect(() => {
-    if (objectUrl && videoRef.current) {
-      videoRef.current.load()
-    }
-  }, [objectUrl])
+  }, [videoBlob])
 
   const changeRate = (newRate) => {
     if (!videoRef.current) return
@@ -450,22 +451,15 @@ function VideoPlayer({ videoBlob, onRemove }) {
 
   return (
     <div className="space-y-3">
-      {/* Video with native controls — required for iOS Safari */}
+      {/* Video with native controls — srcObject set via useEffect */}
       <div className="rounded-xl overflow-hidden bg-black">
-        {objectUrl && (
-          <video
-            key={objectUrl}
-            ref={videoRef}
-            className="w-full max-h-[50vh] object-contain"
-            controls
-            playsInline
-            preload="auto"
-          >
-            <source src={objectUrl} type={mimeType} />
-            {/* Fallback without type for iOS compatibility */}
-            <source src={objectUrl} />
-          </video>
-        )}
+        <video
+          ref={videoRef}
+          className="w-full max-h-[50vh] object-contain"
+          controls
+          playsInline
+          preload="auto"
+        />
       </div>
 
       {/* Extra controls: frame-by-frame + speed */}
