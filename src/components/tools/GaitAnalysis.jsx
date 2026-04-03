@@ -239,10 +239,19 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
 function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
 
-  const handleVideoChange = (e) => {
+  const handleVideoChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setVideoBlob(file)
+    // Read file data immediately — iOS Safari may invalidate the File reference
+    // after the camera picker closes, causing black screen on playback
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const blob = new Blob([arrayBuffer], { type: file.type || 'video/mp4' })
+      setVideoBlob(blob)
+    } catch {
+      // Fallback: use original file if arrayBuffer fails
+      setVideoBlob(file)
+    }
   }
 
   return (
@@ -403,8 +412,8 @@ function AnalysisForm({ form, setForm, videoBlob, setVideoBlob, onSave }) {
 function VideoPlayer({ videoBlob, onRemove }) {
   const videoRef = useRef(null)
   const [rate, setRate] = useState(1)
+  const mimeType = videoBlob?.type || 'video/mp4'
 
-  // Create/revoke object URL when blob changes
   const objectUrl = useMemo(() => {
     if (!videoBlob) return null
     return URL.createObjectURL(videoBlob)
@@ -414,6 +423,13 @@ function VideoPlayer({ videoBlob, onRemove }) {
   useEffect(() => {
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [objectUrl])
+
+  // Force video.load() after mount — required for iOS Safari
+  useEffect(() => {
+    if (objectUrl && videoRef.current) {
+      videoRef.current.load()
     }
   }, [objectUrl])
 
@@ -436,13 +452,14 @@ function VideoPlayer({ videoBlob, onRemove }) {
         {objectUrl && (
           <video
             ref={videoRef}
-            src={objectUrl}
             className="w-full max-h-[50vh] object-contain"
             controls
             playsInline
             webkit-playsinline=""
             preload="metadata"
-          />
+          >
+            <source src={objectUrl} type={mimeType} />
+          </video>
         )}
       </div>
 
