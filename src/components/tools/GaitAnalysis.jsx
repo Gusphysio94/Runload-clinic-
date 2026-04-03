@@ -435,12 +435,20 @@ function VideoPlayer({ videoUrl, onRemove }) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
 
+  // Force load on iOS Safari when videoUrl changes
+  useEffect(() => {
+    if (videoRef.current && videoUrl) {
+      videoRef.current.src = videoUrl
+      videoRef.current.load()
+    }
+  }, [videoUrl])
+
   const togglePlay = () => {
     if (!videoRef.current) return
     if (playing) {
       videoRef.current.pause()
     } else {
-      videoRef.current.play()
+      videoRef.current.play().catch(() => { /* autoplay blocked */ })
     }
     setPlaying(!playing)
   }
@@ -486,12 +494,14 @@ function VideoPlayer({ videoUrl, onRemove }) {
       <div className="relative rounded-xl overflow-hidden bg-black">
         <video
           ref={videoRef}
-          src={videoUrl}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={() => setPlaying(false)}
           className="w-full max-h-[50vh] object-contain"
           playsInline
+          webkit-playsinline=""
+          preload="auto"
+          muted
         />
       </div>
 
