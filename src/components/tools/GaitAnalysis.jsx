@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { saveVideo, loadVideo, deleteVideo } from '../../lib/videoStore'
@@ -43,62 +43,56 @@ const EMPTY_ANALYSIS = {
   videoId: null,
 }
 
+function formatFileSize(bytes) {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate, onDelete }) {
   const [mode, setMode] = useState('list') // 'list' | 'new' | 'view'
   const [viewingId, setViewingId] = useState(null)
   const [form, setForm] = useState(EMPTY_ANALYSIS)
-  const [videoBlob, setVideoBlob] = useState(null) // File or Blob for storage
-  const [videoUrl, setVideoUrl] = useState(null)   // blob URL for playback
+  const [videoState, setVideoState] = useState({ videoId: null, size: 0, saving: false })
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const analyses = [...(gaitAnalyses || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
-  const clearVideo = useCallback(() => {
-    setVideoBlob(null)
-    setVideoUrl(null)
-  }, [])
-
   const startNew = () => {
     setForm({ ...EMPTY_ANALYSIS, date: new Date().toISOString().split('T')[0] })
-    clearVideo()
+    setVideoState({ videoId: null, size: 0, saving: false })
     setMode('new')
   }
 
-  const handleSave = async () => {
-    let videoId = form.videoId
-    if (videoBlob) {
-      videoId = crypto.randomUUID()
-      try {
-        await saveVideo(videoId, videoBlob)
-      } catch {
-        videoId = null
-      }
-    }
-    onAdd({ ...form, videoId })
+  const handleSave = () => {
+    onAdd({ ...form, videoId: videoState.videoId })
     setMode('list')
-    clearVideo()
+    setVideoState({ videoId: null, size: 0, saving: false })
   }
 
-  const handleView = async (analysis) => {
+  const handleVideoCapture = async (file) => {
+    if (!file) return
+    setVideoState({ videoId: null, size: file.size, saving: true })
+    try {
+      const videoId = crypto.randomUUID()
+      await saveVideo(videoId, file)
+      setVideoState({ videoId, size: file.size, saving: false })
+    } catch {
+      setVideoState({ videoId: null, size: 0, saving: false })
+    }
+  }
+
+  const handleVideoRemove = async () => {
+    if (videoState.videoId) {
+      try { await deleteVideo(videoState.videoId) } catch { /* ignore */ }
+    }
+    setVideoState({ videoId: null, size: 0, saving: false })
+  }
+
+  const handleView = (analysis) => {
     setViewingId(analysis.id)
     setMode('view')
-    clearVideo()
-    if (analysis.videoId) {
-      try {
-        const blob = await loadVideo(analysis.videoId)
-        if (blob) {
-          setVideoBlob(blob)
-          // Convert stored blob to data URL for playback
-          const reader = new FileReader()
-          reader.onload = () => setVideoUrl(reader.result)
-          reader.readAsDataURL(blob)
-        }
-      } catch {
-        // Video not available
-      }
-    }
   }
 
   const handleDelete = async (id) => {
@@ -113,7 +107,7 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
 
   const handleBack = () => {
     setMode('list')
-    clearVideo()
+    setVideoState({ videoId: null, size: 0, saving: false })
   }
 
   if (!patient) {
@@ -156,10 +150,9 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
         <AnalysisForm
           form={form}
           setForm={setForm}
-          videoBlob={videoBlob}
-          videoUrl={videoUrl}
-          onVideoSelect={(file, url) => { setVideoBlob(file); setVideoUrl(url) }}
-          onVideoRemove={clearVideo}
+          videoState={videoState}
+          onVideoCapture={handleVideoCapture}
+          onVideoRemove={handleVideoRemove}
           onSave={handleSave}
         />
       )}
@@ -171,7 +164,6 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
         return (
           <AnalysisDetail
             analysis={analysis}
-            videoUrl={videoUrl}
             onDelete={() => setConfirmDelete(analysis)}
           />
         )
@@ -250,25 +242,19 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
 
 // ─── Analysis Form ───────────────────────────────────────────────────────────
 
-function AnalysisForm({ form, setForm, videoBlob, videoUrl, onVideoSelect, onVideoRemove, onSave }) {
+function AnalysisForm({ form, setForm, videoState, onVideoCapture, onVideoRemove, onSave }) {
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
 
   const handleVideoChange = (e) => {
     const file = e.target.files?.[0]
-    if (!file) return
-    // Read as data URL (base64) — iOS Safari invalidates File references
-    // after the camera picker closes, breaking all blob URLs.
-    // Data URLs are self-contained strings that don't reference the File.
-    const reader = new FileReader()
-    reader.onload = () => onVideoSelect(file, reader.result)
-    reader.readAsDataURL(file)
+    if (file) onVideoCapture(file)
   }
 
   return (
     <div className="space-y-5">
       {/* Video capture */}
       <Card title="Vidéo">
-        {!videoBlob ? (
+        {!videoState.videoId && !videoState.saving ? (
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row gap-3">
               <label className="flex-1 cursor-pointer">
@@ -307,9 +293,15 @@ function AnalysisForm({ form, setForm, videoBlob, videoUrl, onVideoSelect, onVid
               La vidéo est stockée localement sur votre appareil uniquement.
             </p>
           </div>
+        ) : videoState.saving ? (
+          <div className="flex items-center justify-center gap-3 py-6">
+            <div className="w-5 h-5 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-text-secondary">Enregistrement de la vidéo...</p>
+          </div>
         ) : (
-          <VideoPlayer
-            videoUrl={videoUrl}
+          <VideoSaved
+            size={videoState.size}
+            videoId={videoState.videoId}
             onRemove={onVideoRemove}
           />
         )}
@@ -417,12 +409,75 @@ function AnalysisForm({ form, setForm, videoBlob, videoUrl, onVideoSelect, onVid
   )
 }
 
-// ─── Video Player with speed controls ────────────────────────────────────────
+// ─── Video Saved confirmation + playback ─────────────────────────────────────
 
-function VideoPlayer({ videoUrl, onRemove }) {
+function VideoSaved({ size, videoId, onRemove }) {
   const videoRef = useRef(null)
+  const [playerState, setPlayerState] = useState('idle') // 'idle' | 'loading' | 'playing' | 'error'
   const [rate, setRate] = useState(1)
-  const [canPlay, setCanPlay] = useState(false)
+  const blobUrlRef = useRef(null)
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+    }
+  }, [])
+
+  const handlePlay = async () => {
+    setPlayerState('loading')
+    try {
+      const blob = await loadVideo(videoId)
+      if (!blob) { setPlayerState('error'); return }
+
+      const url = URL.createObjectURL(blob)
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+      blobUrlRef.current = url
+
+      // Wait for next render where video element exists
+      setTimeout(() => {
+        const video = videoRef.current
+        if (!video) { setPlayerState('error'); return }
+        video.src = url
+        video.load()
+
+        const onCanPlay = () => {
+          setPlayerState('playing')
+          video.removeEventListener('canplay', onCanPlay)
+        }
+        const onError = () => {
+          setPlayerState('error')
+          video.removeEventListener('error', onError)
+        }
+        video.addEventListener('canplay', onCanPlay)
+        video.addEventListener('error', onError)
+
+        // Timeout fallback
+        setTimeout(() => {
+          if (videoRef.current && (!videoRef.current.duration || isNaN(videoRef.current.duration))) {
+            setPlayerState('error')
+          }
+        }, 5000)
+      }, 50)
+    } catch {
+      setPlayerState('error')
+    }
+  }
+
+  const handleDownload = async () => {
+    try {
+      const blob = await loadVideo(videoId)
+      if (!blob) return
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `analyse-foulee-${new Date().toISOString().slice(0, 10)}.mov`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch { /* ignore */ }
+  }
 
   const changeRate = (newRate) => {
     if (!videoRef.current) return
@@ -436,24 +491,94 @@ function VideoPlayer({ videoUrl, onRemove }) {
     videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime + (direction * (1 / 30)))
   }
 
-  if (!videoUrl) return null
-
   return (
     <div className="space-y-3">
-      <div className="rounded-xl overflow-hidden bg-black">
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          className="w-full max-h-[50vh] object-contain"
-          controls
-          playsInline
-          preload="auto"
-          onCanPlay={() => setCanPlay(true)}
-        />
-      </div>
+      {/* Saved confirmation */}
+      {playerState === 'idle' && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-emerald-800">Vidéo enregistrée</p>
+            <p className="text-xs text-emerald-600">{formatFileSize(size)}</p>
+          </div>
+        </div>
+      )}
 
-      {/* Extra controls: frame-by-frame + speed */}
-      {canPlay && (
+      {/* Loading */}
+      {playerState === 'loading' && (
+        <div className="flex items-center justify-center gap-3 py-8 rounded-xl bg-black">
+          <div className="w-5 h-5 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-white/60">Chargement...</p>
+        </div>
+      )}
+
+      {/* Video player (visible when playing or loading) */}
+      {(playerState === 'playing' || playerState === 'loading') && (
+        <div className="rounded-xl overflow-hidden bg-black">
+          <video
+            ref={videoRef}
+            className="w-full max-h-[50vh] object-contain"
+            controls
+            playsInline
+            preload="auto"
+          />
+        </div>
+      )}
+
+      {/* Error — offer download instead */}
+      {playerState === 'error' && (
+        <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-surface-dark/5 border border-border">
+          <p className="text-sm text-text-secondary text-center">
+            La lecture dans le navigateur n'est pas disponible.
+          </p>
+          <button
+            onClick={handleDownload}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-500 text-white text-sm font-semibold rounded-xl
+              hover:bg-primary-600 transition-colors min-h-[44px]"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Télécharger la vidéo
+          </button>
+          <p className="text-[0.65rem] text-text-muted text-center">
+            Ouvrez le fichier depuis l'app Fichiers ou Photos pour le lire.
+          </p>
+        </div>
+      )}
+
+      {/* Playback controls */}
+      {playerState === 'idle' && (
+        <div className="flex gap-2">
+          <button
+            onClick={handlePlay}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border
+              bg-white text-text-primary text-sm font-medium hover:bg-surface-dark/10 transition-colors min-h-[44px]"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+            </svg>
+            Lire la vidéo
+          </button>
+          <button
+            onClick={handleDownload}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border
+              bg-white text-text-secondary text-sm font-medium hover:bg-surface-dark/10 transition-colors min-h-[44px]"
+            title="Télécharger"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Speed controls when playing */}
+      {playerState === 'playing' && (
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => stepFrame(-1)}
@@ -464,9 +589,7 @@ function VideoPlayer({ videoUrl, onRemove }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 0 1 0-1.953l7.108-4.062A1.125 1.125 0 0 1 21 8.688v8.123ZM11.25 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 0 1 0-1.953l7.108-4.062a1.125 1.125 0 0 1 1.683.977v8.123Z" />
             </svg>
           </button>
-
           <span className="text-[0.65rem] text-text-muted">Image</span>
-
           <button
             onClick={() => stepFrame(1)}
             className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-dark/20 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
@@ -476,11 +599,8 @@ function VideoPlayer({ videoUrl, onRemove }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 0 1 0 1.953l-7.108 4.062A1.125 1.125 0 0 1 3 16.81V8.688ZM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 0 1 0 1.953l-7.108 4.062a1.125 1.125 0 0 1-1.683-.977V8.688Z" />
             </svg>
           </button>
-
           <div className="w-px h-6 bg-border mx-1" />
-
           <span className="text-[0.65rem] text-text-muted">Vitesse</span>
-
           {PLAYBACK_RATES.map(r => (
             <button
               key={r}
@@ -712,7 +832,7 @@ function AnalysisCard({ analysis, onClick, onDelete }) {
 
 // ─── Analysis Detail View ────────────────────────────────────────────────────
 
-function AnalysisDetail({ analysis, videoUrl, onDelete }) {
+function AnalysisDetail({ analysis, onDelete }) {
   const a = analysis
   const dateLabel = a.date
     ? new Date(a.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -722,9 +842,9 @@ function AnalysisDetail({ analysis, videoUrl, onDelete }) {
   return (
     <div className="space-y-5">
       {/* Video player if available */}
-      {videoUrl && (
+      {a.videoId && (
         <Card title="Vidéo">
-          <VideoPlayer videoUrl={videoUrl} />
+          <VideoSaved videoId={a.videoId} size={0} />
         </Card>
       )}
 
