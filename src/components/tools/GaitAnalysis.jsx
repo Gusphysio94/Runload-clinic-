@@ -56,10 +56,9 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
   const analyses = [...(gaitAnalyses || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
   const clearVideo = useCallback(() => {
-    if (videoUrl) URL.revokeObjectURL(videoUrl)
     setVideoBlob(null)
     setVideoUrl(null)
-  }, [videoUrl])
+  }, [])
 
   const startNew = () => {
     setForm({ ...EMPTY_ANALYSIS, date: new Date().toISOString().split('T')[0] })
@@ -91,7 +90,10 @@ export function GaitAnalysis({ patient, gaitAnalyses, onAdd, onUpdate: _onUpdate
         const blob = await loadVideo(analysis.videoId)
         if (blob) {
           setVideoBlob(blob)
-          setVideoUrl(URL.createObjectURL(blob))
+          // Convert stored blob to data URL for playback
+          const reader = new FileReader()
+          reader.onload = () => setVideoUrl(reader.result)
+          reader.readAsDataURL(blob)
         }
       } catch {
         // Video not available
@@ -254,10 +256,12 @@ function AnalysisForm({ form, setForm, videoBlob, videoUrl, onVideoSelect, onVid
   const handleVideoChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    // Create blob URL immediately in the same event handler tick —
-    // iOS Safari may invalidate File references asynchronously
-    const url = URL.createObjectURL(file)
-    onVideoSelect(file, url)
+    // Read as data URL (base64) — iOS Safari invalidates File references
+    // after the camera picker closes, breaking all blob URLs.
+    // Data URLs are self-contained strings that don't reference the File.
+    const reader = new FileReader()
+    reader.onload = () => onVideoSelect(file, reader.result)
+    reader.readAsDataURL(file)
   }
 
   return (
@@ -419,7 +423,6 @@ function VideoPlayer({ videoUrl, onRemove }) {
   const videoRef = useRef(null)
   const [rate, setRate] = useState(1)
   const [canPlay, setCanPlay] = useState(false)
-  const [error, setError] = useState(false)
 
   const changeRate = (newRate) => {
     if (!videoRef.current) return
@@ -438,35 +441,15 @@ function VideoPlayer({ videoUrl, onRemove }) {
   return (
     <div className="space-y-3">
       <div className="rounded-xl overflow-hidden bg-black">
-        {/* Always render the video tag with the URL directly in JSX */}
         <video
           ref={videoRef}
           src={videoUrl}
-          className={`w-full max-h-[50vh] object-contain ${error ? 'hidden' : ''}`}
+          className="w-full max-h-[50vh] object-contain"
           controls
           playsInline
           preload="auto"
           onCanPlay={() => setCanPlay(true)}
-          onError={() => setError(true)}
         />
-
-        {/* Fallback: direct <a> link — Safari handles blob URLs natively */}
-        {error && (
-          <div className="flex flex-col items-center justify-center py-10 px-4">
-            <svg className="w-10 h-10 text-white/40 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
-            </svg>
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-5 py-2.5 bg-white text-black text-sm font-semibold rounded-xl
-                hover:bg-white/90 transition-colors min-h-[44px] inline-flex items-center"
-            >
-              Ouvrir la vidéo
-            </a>
-          </div>
-        )}
       </div>
 
       {/* Extra controls: frame-by-frame + speed */}
